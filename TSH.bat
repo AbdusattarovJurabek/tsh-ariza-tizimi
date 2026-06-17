@@ -27,6 +27,24 @@ goto MENU
 :SETUP
 cls
 echo.
+echo  [0/4] .env fayli tekshirilmoqda...
+cd /d "%~dp0backend"
+if not exist ".env" (
+    echo DATABASE_URL="file:./prisma/dev.db"> .env
+    echo JWT_SECRET="tsh-ariza-secret-key-2024">> .env
+    echo JWT_EXPIRES_IN="24h">> .env
+    echo PORT=5000>> .env
+    echo NODE_ENV=development>> .env
+    echo UPLOAD_DIR="uploads">> .env
+    echo MAX_FILE_SIZE=10485760>> .env
+    echo CORS_ORIGIN="http://localhost:3000">> .env
+    echo APP_BASE_URL="http://localhost:3000">> .env
+    echo  [OK] .env yaratildi
+) else (
+    echo  [OK] .env mavjud
+)
+
+echo.
 echo  [1/4] Backend kutubxonalar o'rnatilmoqda...
 cd /d "%~dp0backend"
 call npm install --no-audit --no-fund

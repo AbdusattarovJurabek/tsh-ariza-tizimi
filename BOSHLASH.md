@@ -6,42 +6,55 @@
 
 ---
 
-## 1-QADAM: Birinchi marta o'rnatish (faqat bir marta!)
+## Boshqa kompyuterda birinchi marta ishlatish
 
-`setup.bat` faylini **ikki marta bosing** (sichqoncha bilan)
+### 1. Loyihani yuklab oling
+```
+git clone https://github.com/AbdusattarovJurabek/tsh-ariza-tizimi.git
+```
+Yoki GitHub dan ZIP yuklab, papkani oching.
 
-> ⏱ Bu 3-5 daqiqa vaqt oladi. Tugaguncha kuting.
+### 2. TSH.bat ni ikki marta bosing
+
+Menyu ochiladi:
+```
+1. Birinchi marta o'rnatish   <- BU NI TANLANG (bir marta!)
+2. Ishga tushirish
+3. To'xtatish
+4. Bazani yangilash
+```
+1 ni tanlang → Enter → 3-5 daqiqa kuting.
+
+### 3. Ishga tushirish
+
+TSH.bat → 2 → Enter
+
+Brauzer avtomatik ochiladi: http://localhost:3000
 
 ---
 
-## 2-QADAM: Har safar ishga tushirish
+## Har kuni ishlatish
 
-`start.bat` faylini **ikki marta bosing**
-
-> Brauzer avtomatik ochiladi: **http://localhost:3000**
-
----
-
-## 3-QADAM: To'xtatish
-
-`stop.bat` faylini bosing — yoki ochilgan CMD oynalarini yoping.
+- Ishga tushirish: TSH.bat → 2
+- To'xtatish: TSH.bat → 3
 
 ---
 
-## Login ma'lumotlari
+## Login malumotlari
 
 | Rol | Login | Parol |
 |-----|-------|-------|
-| Super Admin | `superadmin` | `Admin@123` |
-| Admin | `admin1` | `Admin@123` |
-| Foydalanuvchi | `user001` | `User@123` |
+| Super Admin | superadmin | Admin@123 |
+| Admin | admin1 | Admin@123 |
+| Foydalanuvchi | user001 | User@123 |
 
 ---
 
-## Muammo bo'lsa
+## Muammo bolsa
 
-**"node topilmadi" xatosi** → Node.js ni o'rnating: https://nodejs.org
-
-**Port band** xatosi → `stop.bat` ni ishga tushiring, so'ng `start.bat`
-
-**Database xatosi** → `setup.bat` ni qayta ishga tushiring
+| Xato | Yechim |
+|------|--------|
+| node topilmadi | Node.js ornating: https://nodejs.org |
+| Port band | TSH.bat → 3, keyin → 2 |
+| Database xatosi | TSH.bat → 1 (qayta ornatish) |
+| Schema ozgardi | TSH.bat → 4 |
