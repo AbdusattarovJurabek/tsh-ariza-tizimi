@@ -1,0 +1,31 @@
+{
+  "name": "tsh-ariza-backend",
+  "version": "1.0.0",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "node src/app.js",
+    "db:push": "npx prisma db push",
+    "db:seed": "node src/utils/seed.js",
+    "setup": "npx prisma db push && node src/utils/seed.js"
+  },
+  "dependencies": {
+    "@prisma/client": "5.10.0",
+    "bcryptjs": "2.4.3",
+    "cors": "2.8.5",
+    "dotenv": "16.4.1",
+    "express": "4.18.2",
+    "helmet": "7.1.0",
+    "jsonwebtoken": "9.0.2",
+    "multer": "1.4.5-lts.1",
+    "xlsx": "0.18.5",
+    "docx": "8.5.0",
+    "pizzip": "3.1.4",
+    "docxtemplater": "3.44.0",
+    "qrcode": "1.5.3",
+    "uuid": "9.0.0"
+  },
+  "devDependencies": {
+    "prisma": "5.10.0"
+  }
+}

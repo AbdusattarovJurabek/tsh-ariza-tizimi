@@ -1,0 +1,35 @@
+# ===== Node.js =====
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ===== Backend =====
+backend/node_modules/
+backend/.env
+backend/uploads/
+backend/prisma/dev.db
+backend/prisma/dev.db-journal
+backend/src/templates/test_filled_*.docx
+
+# ===== Frontend =====
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== Logs =====
+*.log
+logs/
+
+# ===== IDE =====
+.vscode/settings.json
+.idea/
+*.suo
+*.user
+.env

@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   Int      @id @default(autoincrement())
+  full_name            String
+  username             String   @unique
+  password_hash        String
+  role                 String   @default("USER")
+  region               String?
+  district             String?
+  phone                String?
+  status               String   @default("ACTIVE")
+  must_change_password Boolean  @default(true)
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
+
+  applications   Application[]
+  farmers        Farmer[]
+  status_history StatusHistory[] @relation("ChangedBy")
+}
+
+model Farmer {
+  id             Int      @id @default(autoincrement())
+  user_id        Int
+  user           User     @relation(fields: [user_id], references: [id])
+
+  full_name        String
+  leader_full_name String?
+  legal_address    String?
+  stir             String?
+  region           String?
+  district         String?
+  land_area        Float?
+
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  applications   Application[]
+}
+
+model Application {
+  id         Int    @id @default(autoincrement())
+  app_number String @unique
+  user_id    Int
+  user       User   @relation(fields: [user_id], references: [id])
+  farmer_id  Int?
+  farmer     Farmer? @relation(fields: [farmer_id], references: [id])
+
+  subject_name              String?
+  leader_full_name          String?
+  legal_address             String?
+  stir                      String?
+  mfo                       String?
+  bank_account              String?
+  bank_name                 String?
+  total_land_area           Float?
+  land_specialization       String?
+  garden_area               Float?
+  land_contour              String?
+  garden_address            String?
+  location_url              String?
+  qr_code                   String?
+  land_decision_number      String?
+  land_decision_date        String?
+  lease_contract_number     String?
+  lease_contract_date       String?
+  registry_number           String?
+  soil_type                 String?
+  soil_composition          String?
+  soil_quality              String?
+  soil_fertility            String?
+  water_supply_info         String?
+  weather_analysis          String?
+  scientific_recommendation String?
+  fruit_type                String?
+  fruit_variety             String?
+  planting_scheme           String?
+  seedling_count            Int?
+  planting_period           String?
+  water_source              String?
+  project_amount            Float?
+  permanent_jobs            Int?
+  seasonal_jobs             Int?
+  supplier_companies        String?
+
+  status        String   @default("DRAFT")
+  admin_comment String?
+  submitted_at  DateTime?
+  approved_at   DateTime?
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  files          ApplicationFile[]
+  status_history StatusHistory[]
+}
+
+model ApplicationFile {
+  id             Int         @id @default(autoincrement())
+  application_id Int
+  application    Application @relation(fields: [application_id], references: [id], onDelete: Cascade)
+  file_type      String
+  file_name      String
+  file_path      String
+  mime_type      String
+  file_size      Int?
+  uploaded_at    DateTime    @default(now())
+}
+
+model StatusHistory {
+  id             Int         @id @default(autoincrement())
+  application_id Int
+  application    Application @relation(fields: [application_id], references: [id], onDelete: Cascade)
+  old_status     String?
+  new_status     String
+  comment        String?
+  changed_by_id  Int
+  changed_by     User        @relation("ChangedBy", fields: [changed_by_id], references: [id])
+  created_at     DateTime    @default(now())
+}
