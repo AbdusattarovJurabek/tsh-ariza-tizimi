@@ -8,6 +8,8 @@ const fs = require('fs');
 const authRoutes = require('./routes/auth');
 const applicationRoutes = require('./routes/applications');
 const adminRoutes = require('./routes/admin');
+const tasdiqlovchiRoutes = require('./routes/tasdiqlovchi');
+const imzolovchiRoutes = require('./routes/imzolovchi');
 const userRoutes = require('./routes/users');
 const farmerRoutes = require('./routes/farmers');
 const publicRoutes = require('./routes/public');
@@ -33,9 +35,10 @@ app.use('/uploads', express.static(uploadsDir));
 app.use('/api/auth', authRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/tasdiqlovchi', tasdiqlovchiRoutes);
+app.use('/api/imzolovchi', imzolovchiRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/farmers', farmerRoutes);
-// Ochiq endpoint (login talab qilinmaydi)
 app.use('/api/public', publicRoutes);
 
 // Health check

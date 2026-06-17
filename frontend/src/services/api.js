@@ -63,6 +63,23 @@ export const farmerAPI = {
   delete: (id) => api.delete(`/farmers/${id}`),
 };
 
+export const tasdiqlovchiAPI = {
+  getApplications: (params) => api.get('/tasdiqlovchi/applications', { params }),
+  getApplication: (id) => api.get(`/tasdiqlovchi/applications/${id}`),
+  updateStatus: (id, data) => api.patch(`/tasdiqlovchi/applications/${id}/status`, data),
+  updateWordContent: (id, data) => api.put(`/tasdiqlovchi/applications/${id}/word-content`, data),
+  exportWord: (id) => api.get(`/tasdiqlovchi/applications/${id}/word`, { responseType: 'blob' }),
+  getStatistics: () => api.get('/tasdiqlovchi/statistics'),
+};
+
+export const imzolovchiAPI = {
+  getApplications: (params) => api.get('/imzolovchi/applications', { params }),
+  getApplication: (id) => api.get(`/imzolovchi/applications/${id}`),
+  updateWordContent: (id, data) => api.put(`/imzolovchi/applications/${id}/word-content`, data),
+  exportWord: (id) => api.get(`/imzolovchi/applications/${id}/word`, { responseType: 'blob' }),
+  sign: (id) => api.post(`/imzolovchi/applications/${id}/sign`),
+};
+
 // Login talab qilmaydigan ochiq API
 export const publicAPI = {
   trackApplication: (appNumber) => api.get(`/public/track/${encodeURIComponent(appNumber)}`),

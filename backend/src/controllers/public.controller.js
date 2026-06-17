@@ -4,10 +4,12 @@ const prisma = new PrismaClient();
 
 const STATUS_LABELS = {
   DRAFT: 'Qoralama',
-  SUBMITTED: 'Yuborishga yuborilgan',
+  SUBMITTED: 'Yuborilgan',
   UNDER_REVIEW: "Ko'rib chiqilmoqda",
   HAS_ISSUES: 'Kamchilik mavjud',
   APPROVED: 'Tasdiqlandi',
+  SENT_TO_SIGNER: 'Imzolovchiga yuborildi',
+  SIGNED: 'Imzolandi',
   REJECTED: "Rad etildi",
 };
 
@@ -57,9 +59,9 @@ exports.trackApplication = async (req, res) => {
       garden_area: application.garden_area || null,
       submitted_at: application.submitted_at,
       approved_at: application.approved_at,
+      signed_at: application.signed_at,
       created_at: application.created_at,
       admin_comment: application.status === 'HAS_ISSUES' ? application.admin_comment : null,
-      // Countdown only when APPROVED
       countdown_days: countdown,
       deadline_date,
     });

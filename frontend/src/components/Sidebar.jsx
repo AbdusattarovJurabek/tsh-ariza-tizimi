@@ -34,7 +34,9 @@ export default function Sidebar({ open, onClose }) {
     navigate('/login');
   };
 
-  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
+  const isAdmin = user?.role === 'SUPERADMIN';
+  const isTasdiqlovchi = user?.role === 'TASDIQLOVCHI';
+  const isImzolovchi = user?.role === 'IMZOLOVCHI';
 
   return (
     <div className={`
@@ -70,7 +72,7 @@ export default function Sidebar({ open, onClose }) {
           <div className="min-w-0">
             <p className="text-white text-sm font-medium truncate">{user?.full_name}</p>
             <p className="text-gray-400 text-xs">
-              {user?.role === 'SUPER_ADMIN' ? 'Super Admin' : user?.role === 'ADMIN' ? 'Admin' : 'Foydalanuvchi'}
+              {user?.role === 'SUPERADMIN' ? 'Super Admin' : user?.role === 'TASDIQLOVCHI' ? 'Tasdiqlovchi' : user?.role === 'IMZOLOVCHI' ? 'Imzolovchi' : 'Foydalanuvchi'}
             </p>
           </div>
         </div>
@@ -78,15 +80,30 @@ export default function Sidebar({ open, onClose }) {
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {isAdmin ? (
+        {isAdmin && (
           <>
-            <p className="px-4 py-2 text-gray-500 text-xs uppercase font-semibold tracking-wider">Admin Panel</p>
+            <p className="px-4 py-2 text-gray-500 text-xs uppercase font-semibold tracking-wider">Super Admin</p>
             <NavItem to="/admin" icon={LayoutDashboard} label="Dashboard" onClick={onClose} />
-            <NavItem to="/admin/applications" icon={ClipboardList} label="Arizalar" onClick={onClose} />
+            <NavItem to="/admin/applications" icon={ClipboardList} label="Barcha arizalar" onClick={onClose} />
             <NavItem to="/admin/statistics" icon={BarChart2} label="Statistika" onClick={onClose} />
             <NavItem to="/admin/users" icon={Users} label="Foydalanuvchilar" onClick={onClose} />
           </>
-        ) : (
+        )}
+        {isTasdiqlovchi && (
+          <>
+            <p className="px-4 py-2 text-gray-500 text-xs uppercase font-semibold tracking-wider">Tasdiqlovchi</p>
+            <NavItem to="/tasdiqlovchi" icon={LayoutDashboard} label="Dashboard" onClick={onClose} />
+            <NavItem to="/tasdiqlovchi/applications" icon={ClipboardList} label="Arizalar" onClick={onClose} />
+          </>
+        )}
+        {isImzolovchi && (
+          <>
+            <p className="px-4 py-2 text-gray-500 text-xs uppercase font-semibold tracking-wider">Imzolovchi</p>
+            <NavItem to="/imzolovchi" icon={LayoutDashboard} label="Dashboard" onClick={onClose} />
+            <NavItem to="/imzolovchi/applications" icon={FileText} label="Hujjatlar" onClick={onClose} />
+          </>
+        )}
+        {user?.role === 'USER' && (
           <>
             <p className="px-4 py-2 text-gray-500 text-xs uppercase font-semibold tracking-wider">Mening arizalarim</p>
             <NavItem to="/" icon={LayoutDashboard} label="Bosh sahifa" onClick={onClose} />

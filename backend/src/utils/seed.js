@@ -5,60 +5,48 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Seed boshlandi...');
 
-  // Super Admin yaratish
-  const superAdminPass = await bcrypt.hash('Admin@123', 12);
+  const hash = (p) => bcrypt.hash(p, 12);
+
+  // Super Admin
   await prisma.user.upsert({
     where: { username: 'superadmin' },
-    update: {},
-    create: {
-      full_name: 'Super Administrator',
-      username: 'superadmin',
-      password_hash: superAdminPass,
-      role: 'SUPER_ADMIN',
-      status: 'ACTIVE',
-      must_change_password: false
-    }
+    update: { role: 'SUPERADMIN' },
+    create: { full_name: 'Super Administrator', username: 'superadmin', password_hash: await hash('Admin@123'), role: 'SUPERADMIN', status: 'ACTIVE', must_change_password: false }
   });
 
-  // Admin yaratish
-  const adminPass = await bcrypt.hash('Admin@123', 12);
+  // Tasdiqlovchi
+  await prisma.user.upsert({
+    where: { username: 'tasdiqlovchi1' },
+    update: { role: 'TASDIQLOVCHI' },
+    create: { full_name: 'Toshkent Tasdiqlovchi', username: 'tasdiqlovchi1', password_hash: await hash('Admin@123'), role: 'TASDIQLOVCHI', region: 'Toshkent viloyati', status: 'ACTIVE', must_change_password: false }
+  });
+
+  // Imzolovchi
+  await prisma.user.upsert({
+    where: { username: 'imzolovchi1' },
+    update: { role: 'IMZOLOVCHI' },
+    create: { full_name: 'Direktor Imzolovchi', username: 'imzolovchi1', password_hash: await hash('Admin@123'), role: 'IMZOLOVCHI', status: 'ACTIVE', must_change_password: false }
+  });
+
+  // Eski admin (TASDIQLOVCHI ga o'tkazish)
   await prisma.user.upsert({
     where: { username: 'admin1' },
-    update: {},
-    create: {
-      full_name: 'Toshkent Admin',
-      username: 'admin1',
-      password_hash: adminPass,
-      role: 'ADMIN',
-      region: 'Toshkent viloyati',
-      status: 'ACTIVE',
-      must_change_password: false
-    }
+    update: { role: 'TASDIQLOVCHI' },
+    create: { full_name: 'Admin Tasdiqlovchi', username: 'admin1', password_hash: await hash('Admin@123'), role: 'TASDIQLOVCHI', region: 'Toshkent viloyati', status: 'ACTIVE', must_change_password: false }
   });
 
   // Test foydalanuvchi
-  const userPass = await bcrypt.hash('User@123', 12);
   await prisma.user.upsert({
     where: { username: 'user001' },
     update: {},
-    create: {
-      full_name: 'Alisher Karimov',
-      username: 'user001',
-      password_hash: userPass,
-      role: 'USER',
-      region: 'Toshkent viloyati',
-      district: 'Yunusobod tumani',
-      phone: '+998901234567',
-      status: 'ACTIVE',
-      must_change_password: false
-    }
+    create: { full_name: 'Alisher Karimov', username: 'user001', password_hash: await hash('User@123'), role: 'USER', region: 'Toshkent viloyati', district: 'Yunusobod tumani', phone: '+998901234567', status: 'ACTIVE', must_change_password: false }
   });
 
-  console.log('✅ Seed muvaffaqiyatli yakunlandi!');
-  console.log('Loginlar:');
-  console.log('  Super Admin: superadmin / Admin@123');
-  console.log('  Admin:       admin1 / Admin@123');
-  console.log('  User:        user001 / User@123');
+  console.log('Seed tayyor!');
+  console.log('  superadmin   / Admin@123  (SUPERADMIN)');
+  console.log('  tasdiqlovchi1/ Admin@123  (TASDIQLOVCHI)');
+  console.log('  imzolovchi1  / Admin@123  (IMZOLOVCHI)');
+  console.log('  user001      / User@123   (USER)');
 }
 
 main()

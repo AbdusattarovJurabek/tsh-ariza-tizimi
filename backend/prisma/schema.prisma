@@ -94,6 +94,10 @@ model Application {
   admin_comment String?
   submitted_at  DateTime?
   approved_at   DateTime?
+  sent_to_signer_at DateTime?
+  signed_at     DateTime?
+  word_content  String?
+  generated_word_path String?
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
