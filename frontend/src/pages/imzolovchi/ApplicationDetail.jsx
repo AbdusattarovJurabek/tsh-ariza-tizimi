@@ -1,201 +1,258 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { imzolovchiAPI, downloadBlob } from '../../services/api';
+import WordDocPreview from '../../components/WordDocPreview';
 import toast from 'react-hot-toast';
 
-const APP_BASE = import.meta.env.VITE_APP_BASE_URL || 'http://localhost:3000';
+const STATUS_COLORS = {
+  SENT_TO_SIGNER: 'bg-purple-100 text-purple-800',
+  SIGNED:         'bg-emerald-100 text-emerald-800',
+};
+const STATUS_LABELS = {
+  SENT_TO_SIGNER: 'Imzolovchida',
+  SIGNED:         'Imzolandi',
+};
 
-const WORD_FIELDS = [
-  { key: 'subject_name', label: 'Subyekt nomi' },
-  { key: 'leader_full_name', label: 'Rahbar F.I.Sh.' },
-  { key: 'legal_address', label: 'Yuridik manzil' },
-  { key: 'stir', label: 'INN/STIR' },
-  { key: 'mfo', label: 'MFO' },
-  { key: 'bank_account', label: 'Hisob raqami' },
-  { key: 'bank_name', label: 'Bank nomi' },
-  { key: 'total_land_area', label: 'Jami yer maydoni (ga)' },
-  { key: 'garden_area', label: "Bog' maydoni (ga)" },
-  { key: 'fruit_type', label: 'Meva turi' },
-  { key: 'fruit_variety', label: 'Nav' },
-  { key: 'planting_scheme', label: 'Ekish sxemasi' },
-  { key: 'seedling_count', label: "Ko'chat soni" },
-  { key: 'project_amount', label: 'Loyiha summasi' },
-  { key: 'permanent_jobs', label: 'Doimiy ish o\'rni' },
-  { key: 'seasonal_jobs', label: 'Mavsumiy ish o\'rni' },
-  { key: 'scientific_recommendation', label: 'Ilmiy tavsiya' },
-  { key: 'supplier_companies', label: 'Yetkazib beruvchilar' },
-];
+/** Imzolangan hujjatni PDF sifatida print windowda ochib beradi */
+async function openPdfPrint(id, appNumber) {
+  try {
+    const response = await imzolovchiAPI.previewWord(id);
+
+    // ArrayBuffer olish
+    let arrayBuffer;
+    if (response.data instanceof ArrayBuffer) {
+      arrayBuffer = response.data;
+    } else if (response.data?.buffer instanceof ArrayBuffer) {
+      const d = response.data;
+      arrayBuffer = d.buffer.slice(d.byteOffset, d.byteOffset + d.byteLength);
+    } else {
+      arrayBuffer = response.data;
+    }
+
+    // mammoth → HTML
+    let convertFn;
+    if (window.mammoth?.convertToHtml) {
+      convertFn = window.mammoth.convertToHtml.bind(window.mammoth);
+    } else {
+      const m = await import('mammoth');
+      convertFn = (m.default?.convertToHtml || m.convertToHtml).bind(m.default || m);
+    }
+    const result = await convertFn({ arrayBuffer });
+    const bodyHtml = result.value || '';
+
+    // Print oynasi ochish
+    const win = window.open('', '_blank', 'width=900,height=700');
+    if (!win) { toast.error("Pop-up bloklangan. Brauzer sozlamalarini tekshiring."); return; }
+
+    win.document.write(`<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8"/>
+<title>TSH-${appNumber} — Imzolangan hujjat</title>
+<style>
+  @page { size: A4; margin: 20mm 25mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 12pt;
+    line-height: 1.6;
+    color: #000;
+    margin: 0; padding: 0;
+  }
+  p { margin: 4px 0; text-align: justify; }
+  h1,h2,h3,h4,h5 { text-align: center; margin: 10px 0 4px; }
+  table { width: 100%; border-collapse: collapse; margin: 6px 0; }
+  td, th { border: 1px solid #999; padding: 5px 8px; font-size: 11pt; }
+  img { display: block; margin: 8px auto; max-width: 160px; max-height: 160px; height: auto; }
+  .stamp {
+    border: 2px solid #166534;
+    border-radius: 50%;
+    width: 80px; height: 80px;
+    display: flex; align-items: center; justify-content: center;
+    margin: 10px auto;
+    font-size: 9pt; color: #166534; text-align: center; padding: 4px;
+  }
+  .signed-banner {
+    border: 1.5px solid #166534;
+    background: #f0fdf4;
+    border-radius: 6px;
+    padding: 8px 16px;
+    margin: 12px 0;
+    text-align: center;
+    font-size: 11pt;
+    color: #166534;
+  }
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<div class="signed-banner">
+  ✅ IMZOLANGAN HUJJAT &nbsp;|&nbsp; ${appNumber} &nbsp;|&nbsp; ${new Date().toLocaleDateString('uz-UZ')}
+</div>
+${bodyHtml}
+<script>
+  window.onload = function() {
+    setTimeout(function() { window.print(); }, 400);
+  };
+</script>
+</body>
+</html>`);
+    win.document.close();
+  } catch (e) {
+    console.error('PDF ochishda xato:', e);
+    toast.error('PDF ochishda xato: ' + e.message);
+  }
+}
 
 export default function ImzolovchiApplicationDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [app, setApp] = useState(null);
+
+  const [app, setApp]         = useState(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState('info');
-  const [wordData, setWordData] = useState({});
-  const [saving, setSaving] = useState(false);
   const [signing, setSigning] = useState(false);
-  const [confirmSign, setConfirmSign] = useState(false);
+  const [signModal, setSignModal] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   useEffect(() => {
-    imzolovchiAPI.getApplication(id).then(r => {
-      setApp(r.data);
-      const wc = r.data.word_content || {};
-      const initial = {};
-      WORD_FIELDS.forEach(f => {
-        initial[f.key] = wc[f.key] !== undefined ? wc[f.key] : (r.data[f.key] || '');
+    imzolovchiAPI.getApplication(id)
+      .then(r => { setApp(r.data); setLoading(false); })
+      .catch(() => {
+        toast.error('Ariza topilmadi');
+        navigate('/imzolovchi/applications');
       });
-      setWordData(initial);
-      setLoading(false);
-    }).catch(() => { toast.error('Topilmadi'); navigate('/imzolovchi/applications'); });
   }, [id]);
-
-  const saveWordContent = async () => {
-    setSaving(true);
-    try {
-      await imzolovchiAPI.updateWordContent(id, wordData);
-      toast.success('Saqlandi');
-    } catch { toast.error('Xato'); }
-    setSaving(false);
-  };
 
   const downloadWord = async () => {
     try {
       const r = await imzolovchiAPI.exportWord(id);
-      downloadBlob(r.data, `ariza-${app.app_number}.docx`);
-    } catch { toast.error('Xato'); }
+      downloadBlob(r.data, `TSH-${app.app_number}.docx`);
+      toast.success('Word yuklanmoqda...');
+    } catch {
+      toast.error('Xato yuz berdi');
+    }
   };
 
-  const handleSign = async () => {
+  const downloadPdf = async () => {
+    setPdfLoading(true);
+    toast('PDF tayyorlanmoqda...', { icon: '⏳' });
+    await openPdfPrint(id, app.app_number);
+    setPdfLoading(false);
+  };
+
+  const signDocument = async () => {
     setSigning(true);
     try {
-      await imzolovchiAPI.sign(id);
-      toast.success('Hujjat imzolandi! ✅');
-      setApp(prev => ({ ...prev, status: 'SIGNED', signed_at: new Date().toISOString() }));
-      setConfirmSign(false);
-    } catch (e) { toast.error(e.response?.data?.error || 'Xato'); }
-    setSigning(false);
+      const r = await imzolovchiAPI.sign(id);
+      toast.success('Hujjat imzolandi ✓');
+      setApp(prev => ({ ...prev, status: 'SIGNED', signed_at: r.data.signed_at || new Date().toISOString() }));
+      setSignModal(false);
+
+      // Imzolangandan keyin avtomatik PDF ochish
+      toast('Imzolangan hujjat PDF sifatida ochilmoqda...', { icon: '📄', duration: 3000 });
+      setTimeout(async () => {
+        await openPdfPrint(id, app.app_number);
+      }, 800);
+    } catch (e) {
+      toast.error(e.response?.data?.error || 'Imzolashda xato');
+    } finally {
+      setSigning(false);
+    }
   };
 
-  if (loading) return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600"/></div>;
+  if (loading) {
+    return (
+      <div className="flex justify-center py-20">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600" />
+      </div>
+    );
+  }
 
-  const publicDocUrl = `${APP_BASE}/document/${app.app_number}`;
   const isSigned = app.status === 'SIGNED';
-  const canSign = app.status === 'SENT_TO_SIGNER';
+  const publicUrl = `${window.location.origin}/document/${app.app_number}`;
 
   return (
-    <div className="space-y-4 max-w-5xl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <button onClick={() => navigate(-1)} className="text-sm text-gray-500 hover:text-gray-700 mb-1">← Orqaga</button>
-          <h1 className="text-xl font-bold">{app.app_number}</h1>
-        </div>
-        <div className="flex gap-2">
-          <span className={`px-3 py-1 rounded-full text-sm font-medium ${isSigned ? 'bg-emerald-100 text-emerald-800' : 'bg-purple-100 text-purple-800'}`}>
-            {isSigned ? '✅ Imzolandi' : '✍️ Imzo kutilmoqda'}
+    <div className="flex flex-col -m-4 lg:-m-6" style={{ height: 'calc(100vh - 64px)' }}>
+
+      {/* Yuqori panel */}
+      <div className="flex items-center justify-between px-4 py-2 bg-white border-b shadow-sm shrink-0 flex-wrap gap-2">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-gray-700 text-sm font-medium">
+            ← Orqaga
+          </button>
+          <span className="text-gray-300">|</span>
+          <span className="font-bold text-gray-800 text-sm">{app.app_number}</span>
+          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[app.status] || 'bg-gray-100 text-gray-700'}`}>
+            {STATUS_LABELS[app.status] || app.status}
           </span>
-          {canSign && (
-            <button onClick={() => setConfirmSign(true)}
-              className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 font-medium">
-              🖊️ Imzolash (QR orqali tasdiqlash)
+        </div>
+
+        <div className="flex gap-2 flex-wrap">
+          <button onClick={downloadWord}
+            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+            ⬇ Word yuklab olish
+          </button>
+          <button onClick={downloadPdf} disabled={pdfLoading}
+            className="px-3 py-1.5 bg-rose-600 text-white rounded-lg text-sm font-medium hover:bg-rose-700 disabled:opacity-50">
+            {pdfLoading ? '⏳...' : '📄 PDF yuklab olish'}
+          </button>
+          {!isSigned && (
+            <button onClick={() => setSignModal(true)}
+              className="px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700">
+              ✍️ Imzolash
             </button>
           )}
         </div>
       </div>
 
-      {/* QR va public link (imzolangandan keyin) */}
+      {/* QR + imzolangan banner */}
       {isSigned && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-4">
-          <img src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(publicDocUrl)}&size=80x80`}
-            alt="QR" className="rounded" />
-          <div>
-            <div className="font-medium text-emerald-800 mb-1">Hujjat imzolandi — ochiq havola:</div>
-            <a href={publicDocUrl} target="_blank" rel="noreferrer"
-              className="text-sm text-emerald-600 hover:underline break-all">{publicDocUrl}</a>
-            <div className="text-xs text-gray-500 mt-1">
-              Imzolangan: {new Date(app.signed_at).toLocaleString('uz-UZ')}
-            </div>
-          </div>
+        <div className="shrink-0 bg-emerald-50 border-b border-emerald-200 px-4 py-2 flex items-center gap-3 flex-wrap">
+          <span className="text-emerald-700 text-sm font-medium">✅ Hujjat imzolangan</span>
+          <a href={publicUrl} target="_blank" rel="noreferrer"
+            className="text-sm text-blue-600 hover:underline font-medium">
+            🔗 Ochiq sahifa
+          </a>
+          <button
+            onClick={() => { navigator.clipboard.writeText(publicUrl); toast.success('Nusxa olindi'); }}
+            className="text-xs text-gray-500 hover:text-gray-700 border rounded px-2 py-0.5">
+            Nusxa
+          </button>
+          <button onClick={downloadPdf} disabled={pdfLoading}
+            className="ml-auto text-xs bg-rose-600 text-white rounded px-3 py-1 hover:bg-rose-700 disabled:opacity-50">
+            {pdfLoading ? '⏳...' : '📄 PDF'}
+          </button>
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex border-b">
-        {['info', 'word'].map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${tab === t ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500'}`}>
-            {t === 'info' ? "📋 Ma'lumotlar" : '📝 Hujjat tahrirlash'}
-          </button>
-        ))}
+      {/* Word preview */}
+      <div className="flex-1 overflow-hidden">
+        <WordDocPreview
+          fetchFn={() => imzolovchiAPI.previewWord(id)}
+          editable={false}
+        />
       </div>
 
-      {/* Info tab */}
-      {tab === 'info' && (
-        <div className="bg-white rounded-xl shadow-sm border p-6">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div><span className="text-gray-500">Subyekt:</span> <strong>{app.subject_name || '—'}</strong></div>
-            <div><span className="text-gray-500">Rahbar:</span> <strong>{app.leader_full_name || '—'}</strong></div>
-            <div><span className="text-gray-500">INN:</span> <strong>{app.stir || '—'}</strong></div>
-            <div><span className="text-gray-500">Meva turi:</span> <strong>{app.fruit_type || '—'}</strong></div>
-            <div><span className="text-gray-500">Bog' maydoni:</span> <strong>{app.garden_area ? `${app.garden_area} ga` : '—'}</strong></div>
-            <div><span className="text-gray-500">Loyiha summasi:</span> <strong>{app.project_amount ? `${Number(app.project_amount).toLocaleString()} so'm` : '—'}</strong></div>
-          </div>
-        </div>
-      )}
-
-      {/* Word tahrirlash */}
-      {tab === 'word' && (
-        <div className="bg-white rounded-xl shadow-sm border p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-600">Imzolashdan oldin hujjatni tahrirlashingiz mumkin.</p>
-            <div className="flex gap-2">
-              {!isSigned && (
-                <button onClick={saveWordContent} disabled={saving}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50">
-                  {saving ? 'Saqlanmoqda...' : '💾 Saqlash'}
-                </button>
-              )}
-              <button onClick={downloadWord}
-                className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700">
-                ⬇️ Word yuklab olish
-              </button>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            {WORD_FIELDS.map(f => (
-              <div key={f.key}>
-                <label className="text-xs text-gray-500 mb-1 block">{f.label}</label>
-                <input
-                  value={wordData[f.key] || ''}
-                  onChange={e => !isSigned && setWordData(prev => ({ ...prev, [f.key]: e.target.value }))}
-                  readOnly={isSigned}
-                  className={`w-full border rounded-lg px-3 py-2 text-sm ${isSigned ? 'bg-gray-50 cursor-not-allowed' : 'focus:ring-2 focus:ring-primary-500'}`}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Imzolash tasdiqlash modal */}
-      {confirmSign && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm">
-            <h3 className="font-semibold text-lg mb-2">Hujjatni imzolash</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Hujjat imzolangandan so'ng arizachi javob xatini ko'ra oladi.
-              QR kod orqali ommaviy havola ochiladi.
+      {/* Imzolash modal */}
+      {signModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm text-center">
+            <div className="text-4xl mb-3">✍️</div>
+            <h3 className="font-bold text-lg mb-2">Hujjatni imzolash</h3>
+            <p className="text-gray-600 text-sm mb-6">
+              <strong>{app.app_number}</strong> raqamli TSH hujjatini imzolaysizmi?<br />
+              Imzolangandan keyin o'zgartirish kiritib bo'lmaydi.
             </p>
-            <div className="bg-gray-50 rounded-lg p-3 mb-4">
-              <div className="text-xs text-gray-500">Ochiq havola:</div>
-              <div className="text-sm font-medium break-all">{publicDocUrl}</div>
-            </div>
-            <div className="flex gap-3">
-              <button onClick={() => setConfirmSign(false)} className="flex-1 px-4 py-2 border rounded-lg text-sm">Bekor</button>
-              <button onClick={handleSign} disabled={signing}
-                className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50">
-                {signing ? 'Imzolanmoqda...' : '✅ Tasdiqlash'}
+            <div className="flex gap-3 justify-center">
+              <button onClick={() => setSignModal(false)}
+                className="px-5 py-2 border rounded-lg text-sm hover:bg-gray-50">
+                Bekor
+              </button>
+              <button onClick={signDocument} disabled={signing}
+                className="px-5 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 disabled:opacity-50">
+                {signing ? 'Imzolanmoqda...' : '✓ Imzolash'}
               </button>
             </div>
           </div>

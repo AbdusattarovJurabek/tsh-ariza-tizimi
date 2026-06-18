@@ -23,7 +23,7 @@ export default function TasdiqlovchiDashboard() {
 
   useEffect(() => {
     tasdiqlovchiAPI.getStatistics().then(r => setStats(r.data));
-    tasdiqlovchiAPI.getApplications({ limit: 5 }).then(r => setRecent(r.data.data));
+    tasdiqlovchiAPI.getApplications({ limit: 5 }).then(r => setRecent(r.data.data || []));
   }, []);
 
   const cards = [

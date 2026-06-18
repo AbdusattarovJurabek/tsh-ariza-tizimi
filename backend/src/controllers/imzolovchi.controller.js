@@ -97,6 +97,21 @@ exports.exportWord = async (req, res) => {
     });
     if (!application) return res.status(404).json({ error: 'Ariza topilmadi' });
 
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', `attachment; filename="TSH-${application.app_number}.docx"`);
+
+    // Tasdiqlovchi HTML saqlagan bo'lsa — shuni ishlatamiz
+    if (application.word_html_content) {
+      const HTMLtoDOCX = require('html-to-docx');
+      const docBuffer = await HTMLtoDOCX(application.word_html_content, null, {
+        table: { row: { cantSplit: true } },
+        footer: true,
+        pageNumber: false,
+      });
+      return res.send(docBuffer);
+    }
+
+    // Aks holda — asl template
     let dataForWord = { ...application };
     if (application.word_content) {
       try {
@@ -104,10 +119,7 @@ exports.exportWord = async (req, res) => {
         dataForWord = { ...application, ...wc };
       } catch {}
     }
-
     const docBuffer = await generateApplicationWord(dataForWord);
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    res.setHeader('Content-Disposition', `attachment; filename="ariza-${application.app_number}.docx"`);
     res.send(docBuffer);
   } catch (err) {
     console.error(err);

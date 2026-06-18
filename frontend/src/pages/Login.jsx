@@ -26,6 +26,10 @@ export default function LoginPage() {
         navigate('/change-password');
       } else if (user.role === 'USER') {
         navigate('/');
+      } else if (user.role === 'TASDIQLOVCHI') {
+        navigate('/tasdiqlovchi');
+      } else if (user.role === 'IMZOLOVCHI') {
+        navigate('/imzolovchi');
       } else {
         navigate('/admin');
       }
@@ -129,11 +133,26 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-8 p-4 bg-gray-50 rounded-xl border border-gray-200">
-            <p className="text-xs text-gray-500 font-medium mb-2">Test ma'lumotlari:</p>
-            <div className="space-y-1 text-xs text-gray-600">
-              <div className="flex justify-between"><span>Super Admin:</span><code className="bg-gray-200 px-1 rounded">superadmin / Admin@123</code></div>
-              <div className="flex justify-between"><span>Admin:</span><code className="bg-gray-200 px-1 rounded">admin1 / Admin@123</code></div>
-              <div className="flex justify-between"><span>Foydalanuvchi:</span><code className="bg-gray-200 px-1 rounded">user001 / User@123</code></div>
+            <p className="text-xs text-gray-500 font-medium mb-2">Tizimga kirish:</p>
+            <div className="space-y-1.5 text-xs text-gray-600">
+              {[
+                { rol: 'Arizachi', login: 'user001', parol: 'User@123' },
+                { rol: 'Tasdiqlovchi', login: 'tasdiqlovchi1', parol: 'Admin@123' },
+                { rol: 'Imzolovchi', login: 'imzolovchi1', parol: 'Admin@123' },
+                { rol: 'Super Admin', login: 'superadmin', parol: 'Admin@123' },
+              ].map(({ rol, login, parol }) => (
+                <div key={login} className="flex items-center justify-between gap-2">
+                  <span className="text-gray-500 w-24 shrink-0">{rol}:</span>
+                  <code
+                    className="bg-white border border-gray-200 px-2 py-0.5 rounded cursor-pointer hover:bg-primary-50 hover:border-primary-300 transition-colors flex-1 text-center"
+                    onClick={() => { setUsername(login); setPassword(parol); }}
+                    title="Bosing — avtomatik to'ldiradi"
+                  >
+                    {login}
+                  </code>
+                </div>
+              ))}
+              <p className="text-gray-400 text-center pt-1">Bosing — avtomatik to'ldiriladi</p>
             </div>
           </div>
 

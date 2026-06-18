@@ -104,49 +104,72 @@ exports.updateStatus = async (req, res) => {
   }
 };
 
-// Word mazmunini saqlash (tahrirlash)
+// Forma maydonlarini saqlash
 exports.updateWordContent = async (req, res) => {
   try {
     const { id } = req.params;
-    const wordContent = req.body;
-
     const application = await prisma.application.findUnique({ where: { id: parseInt(id) } });
     if (!application) return res.status(404).json({ error: 'Ariza topilmadi' });
-
-    const updated = await prisma.application.update({
+    await prisma.application.update({
       where: { id: parseInt(id) },
-      data: { word_content: JSON.stringify(wordContent) }
+      data: { word_content: JSON.stringify(req.body) }
     });
-
-    res.json({ message: 'Saqlandi', word_content: wordContent });
+    res.json({ message: 'Saqlandi' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Saqlashda xato' });
   }
 };
 
-// Word yuklab olish (word_content dan yoki arizadan)
+// Tahrirlangan HTML ni saqlash
+exports.saveHtmlContent = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { html } = req.body;
+    if (!html) return res.status(400).json({ error: 'HTML yo\'q' });
+    const application = await prisma.application.findUnique({ where: { id: parseInt(id) } });
+    if (!application) return res.status(404).json({ error: 'Ariza topilmadi' });
+    await prisma.application.update({
+      where: { id: parseInt(id) },
+      data: { word_html_content: html }
+    });
+    res.json({ message: 'HTML saqlandi' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Saqlashda xato' });
+  }
+};
+
+// Word yuklab olish
 exports.exportWord = async (req, res) => {
   try {
     const { id } = req.params;
     const application = await prisma.application.findUnique({
       where: { id: parseInt(id) },
-      include: { files: true, user: { select: { full_name: true, region: true, district: true, phone: true } } }
+      include: { user: { select: { full_name: true, region: true, district: true, phone: true } } }
     });
     if (!application) return res.status(404).json({ error: 'Ariza topilmadi' });
 
-    // word_content mavjud bo'lsa, uni application ustiga qo'yamiz
-    let dataForWord = { ...application };
-    if (application.word_content) {
-      try {
-        const wc = JSON.parse(application.word_content);
-        dataForWord = { ...application, ...wc };
-      } catch {}
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', `attachment; filename="TSH-${application.app_number}.docx"`);
+
+    // Agar HTML saqlangan bo'lsa — html-to-docx orqali
+    if (application.word_html_content) {
+      const HTMLtoDOCX = require('html-to-docx');
+      const docBuffer = await HTMLtoDOCX(application.word_html_content, null, {
+        table: { row: { cantSplit: true } },
+        footer: true,
+        pageNumber: false,
+      });
+      return res.send(docBuffer);
     }
 
-    const docBuffer = await generateApplicationWord(dataForWord);
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    res.setHeader('Content-Disposition', `attachment; filename="ariza-${application.app_number}.docx"`);
+    // Aks holda — asl template
+    let data = { ...application };
+    if (application.word_content) {
+      try { data = { ...application, ...JSON.parse(application.word_content) }; } catch {}
+    }
+    const docBuffer = await generateApplicationWord(data);
     res.send(docBuffer);
   } catch (err) {
     console.error(err);

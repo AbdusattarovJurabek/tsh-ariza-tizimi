@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -96,7 +96,8 @@ model Application {
   approved_at   DateTime?
   sent_to_signer_at DateTime?
   signed_at     DateTime?
-  word_content  String?
+  word_content      String?
+  word_html_content String?
   generated_word_path String?
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt

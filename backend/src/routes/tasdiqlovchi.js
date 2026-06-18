@@ -8,6 +8,7 @@ router.get('/applications', allow, role, ctrl.getAllApplications);
 router.get('/applications/:id', allow, role, ctrl.getApplication);
 router.patch('/applications/:id/status', allow, role, ctrl.updateStatus);
 router.put('/applications/:id/word-content', allow, role, ctrl.updateWordContent);
+router.put('/applications/:id/html-content', allow, role, ctrl.saveHtmlContent);
 router.get('/applications/:id/word', allow, role, ctrl.exportWord);
 router.get('/statistics', allow, role, ctrl.getStatistics);
 

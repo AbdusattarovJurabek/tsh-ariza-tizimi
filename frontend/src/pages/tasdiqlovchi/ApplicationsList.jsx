@@ -25,8 +25,8 @@ export default function TasdiqlovchiApplicationsList() {
     setLoading(true);
     try {
       const r = await tasdiqlovchiAPI.getApplications({ search, status, page, limit: 20 });
-      setApps(r.data.data);
-      setTotal(r.data.total);
+      setApps(r.data.data || []);
+      setTotal(r.data.total || 0);
     } finally { setLoading(false); }
   };
 

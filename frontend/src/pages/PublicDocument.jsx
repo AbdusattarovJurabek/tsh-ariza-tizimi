@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
+import DocumentPreview from '../components/DocumentPreview';
 
 const api = axios.create({ baseURL: '/api', timeout: 15000 });
 
@@ -17,116 +18,142 @@ export default function PublicDocument() {
   }, [app_number]);
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-green-600"/>
     </div>
   );
 
   if (error) return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
       <div className="bg-white rounded-xl shadow p-8 text-center max-w-sm">
-        <div className="text-4xl mb-3">❌</div>
-        <p className="text-gray-600">{error}</p>
+        <div className="text-5xl mb-4">❌</div>
+        <p className="text-gray-700 font-medium mb-2">Hujjat topilmadi</p>
+        <p className="text-gray-500 text-sm">{error}</p>
       </div>
     </div>
   );
 
   const isSigned = data.status === 'SIGNED';
-  const verifyUrl = `${window.location.origin}/document/${data.app_number}`;
+
+  // API dan kelgan data ni DocumentPreview formatiga mapping
+  const wordData = {
+    subject_name: data.subject_name,
+    stir: data.stir,
+    leader_full_name: data.leader_full_name,
+    legal_address: data.legal_address,
+    mfo: data.mfo,
+    bank_account: data.bank_account,
+    bank_name: data.bank_name,
+    total_land_area: data.total_land_area,
+    garden_area: data.garden_area,
+    land_specialization: data.land_specialization,
+    garden_address: data.garden_address,
+    land_decision_date: data.land_decision_date,
+    land_decision_number: data.land_decision_number,
+    lease_contract_date: data.lease_contract_date,
+    lease_contract_number: data.lease_contract_number,
+    registry_number: data.registry_number,
+    soil_type: data.soil_type,
+    soil_quality: data.soil_quality,
+    water_supply_info: data.water_supply_info,
+    weather_analysis: data.weather_analysis,
+    fruit_type: data.fruit_type,
+    fruit_variety: data.fruit_variety,
+    planting_scheme: data.planting_scheme,
+    seedling_count: data.seedling_count,
+    planting_period: data.planting_period,
+    water_source: data.water_source,
+    project_amount: data.project_amount,
+    permanent_jobs: data.permanent_jobs,
+    seasonal_jobs: data.seasonal_jobs,
+    supplier_companies: data.supplier_companies,
+    scientific_recommendation: data.scientific_recommendation,
+    // word_content override (agar tasdiqlovchi/imzolovchi o'zgartirgan bo'lsa)
+    ...(data.word_content || {}),
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   return (
-    <div className="min-h-screen bg-gray-100 py-6 px-4 print:bg-white print:p-0">
-      {/* Chop etish tugmasi */}
-      <div className="max-w-3xl mx-auto mb-4 flex justify-between items-center print:hidden">
-        <span className="text-sm text-gray-500">📄 Hujjat ko'rinishi</span>
-        <button onClick={() => window.print()}
-          className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">
-          🖨️ Chop etish / PDF saqlash
-        </button>
-      </div>
+    <>
+      {/* Print CSS */}
+      <style>{`
+        @media print {
+          .no-print { display: none !important; }
+          body { margin: 0; background: white; }
+        }
+      `}</style>
 
-      {/* Hujjat */}
-      <div className="max-w-3xl mx-auto bg-white shadow-lg rounded-xl overflow-hidden print:shadow-none print:rounded-none">
-        {/* Header */}
-        <div className="bg-green-700 text-white px-8 py-6 text-center">
-          <div className="text-lg font-bold">O'ZBEKISTON RESPUBLIKASI</div>
-          <div className="text-sm opacity-90">Agrosanoat rivojlantirish agentligi</div>
-          <div className="text-xs opacity-75 mt-1">Texnik shart hujjati</div>
-        </div>
-
-        {/* Status banner */}
-        <div className={`px-8 py-3 text-center text-sm font-medium ${isSigned ? 'bg-emerald-50 text-emerald-800 border-b border-emerald-100' : 'bg-yellow-50 text-yellow-800 border-b border-yellow-100'}`}>
-          {isSigned ? `✅ Hujjat imzolandi — ${new Date(data.signed_at).toLocaleDateString('uz-UZ')}` : `⏳ ${data.status_label}`}
-        </div>
-
-        <div className="px-8 py-6 space-y-6">
-          {/* Ariza raqami */}
-          <div className="text-center">
-            <div className="text-xs text-gray-500 uppercase tracking-wide">Ariza raqami</div>
-            <div className="text-2xl font-bold text-gray-800">{data.app_number}</div>
-          </div>
-
-          {/* Asosiy ma'lumotlar */}
-          <div className="border rounded-xl overflow-hidden">
-            <div className="bg-gray-50 px-4 py-2 text-xs font-semibold text-gray-600 uppercase">Subyekt ma'lumotlari</div>
-            <table className="w-full text-sm">
-              <tbody className="divide-y">
-                <Row label="Tashkilot nomi" value={data.subject_name} />
-                <Row label="Rahbar F.I.Sh." value={data.leader_full_name} />
-                <Row label="Meva turi" value={data.fruit_type} />
-                <Row label="Bog' maydoni" value={data.garden_area ? `${data.garden_area} gektar` : null} />
-                <Row label="Yuborilgan sana" value={data.submitted_at ? new Date(data.submitted_at).toLocaleDateString('uz-UZ') : null} />
-                {isSigned && <Row label="Imzolangan sana" value={new Date(data.signed_at).toLocaleDateString('uz-UZ')} highlight />}
-              </tbody>
-            </table>
-          </div>
-
-          {/* QR va tasdiqlash */}
-          {isSigned && (
-            <div className="border rounded-xl p-4 flex items-center gap-4 bg-emerald-50">
-              <img src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(verifyUrl)}&size=100x100`}
-                alt="QR" className="rounded flex-shrink-0" />
-              <div className="text-sm">
-                <div className="font-semibold text-emerald-800 mb-1">Hujjat haqiqiyligini tekshirish</div>
-                <div className="text-gray-600 text-xs">QR kodni skaner qiling yoki quyidagi havola orqali kiring:</div>
-                <a href={verifyUrl} className="text-emerald-600 text-xs break-all hover:underline">{verifyUrl}</a>
-              </div>
+      <div className="min-h-screen bg-gray-100">
+        {/* Yuqori panel — print paytida yashiriladi */}
+        <div className="no-print sticky top-0 z-20 bg-white border-b shadow-sm">
+          <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-lg font-bold text-green-700">ARA</span>
+              <span className="text-gray-300">|</span>
+              <span className="text-sm text-gray-600">Texnik shart hujjati</span>
+              <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-medium ${
+                isSigned ? 'bg-emerald-100 text-emerald-800' : 'bg-yellow-100 text-yellow-800'
+              }`}>
+                {isSigned ? '✅ Imzolandi' : `⏳ ${data.status_label || data.status}`}
+              </span>
             </div>
-          )}
+            <div className="flex items-center gap-2">
+              {isSigned && (
+                <a
+                  href={`/api/public/download/${encodeURIComponent(app_number)}`}
+                  className="px-4 py-2 border border-green-600 text-green-700 rounded-lg text-sm hover:bg-green-50 font-medium"
+                  download
+                >
+                  ⬇ Word yuklab olish
+                </a>
+              )}
+              <button
+                onClick={handlePrint}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 font-medium"
+              >
+                🖨️ PDF sifatida saqlash
+              </button>
+            </div>
+          </div>
+        </div>
 
-          {/* Imzo joyi */}
-          {isSigned && (
-            <div className="border-t pt-4 mt-6">
-              <div className="flex justify-between text-sm">
-                <div>
-                  <div className="text-gray-500 text-xs mb-1">Imzolagan:</div>
-                  <div className="font-medium">Agentlik direktori</div>
-                  <div className="mt-6 border-t border-gray-400 pt-1 text-xs text-gray-500 w-40">Imzo</div>
+        {/* Imzolangan — tasdiqlash banneri */}
+        {isSigned && (
+          <div className="no-print max-w-4xl mx-auto mt-4 px-4">
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-4">
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(window.location.href)}&size=80x80`}
+                alt="QR" className="rounded w-16 h-16 shrink-0"
+              />
+              <div>
+                <div className="font-semibold text-emerald-800 text-sm">Hujjat imzolangan va tasdiqlangan</div>
+                <div className="text-xs text-gray-600 mt-0.5">
+                  Imzolangan sana: <strong>{new Date(data.signed_at).toLocaleDateString('uz-UZ')}</strong>
                 </div>
-                <div className="text-right">
-                  <div className="text-gray-500 text-xs mb-1">Sana:</div>
-                  <div className="font-medium">{new Date(data.signed_at).toLocaleDateString('uz-UZ')}</div>
-                  <div className="mt-6 border-t border-gray-400 pt-1 text-xs text-gray-500 w-32">M.O.</div>
+                <div className="text-xs text-gray-500 mt-0.5">
+                  Haqiqiyligini tekshirish uchun QR kodni skaner qiling yoki
+                  <a href={window.location.href} className="text-emerald-600 hover:underline ml-1">
+                    {window.location.href}
+                  </a>
                 </div>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        <div className="px-8 pb-4 text-center text-xs text-gray-400">
-          Ushbu hujjat {new Date().toLocaleDateString('uz-UZ')} sanasida {window.location.origin} saytidan olingan
+        {/* Hujjat (DocumentPreview) */}
+        <div className="pt-4 pb-10">
+          <DocumentPreview
+            wordData={wordData}
+            appNumber={data.app_number}
+            signedAt={isSigned ? data.signed_at : null}
+            editable={false}
+          />
         </div>
       </div>
-    </div>
-  );
-}
-
-function Row({ label, value, highlight }) {
-  if (!value) return null;
-  return (
-    <tr className={highlight ? 'bg-emerald-50' : ''}>
-      <td className="px-4 py-2 text-gray-500 w-40">{label}</td>
-      <td className="px-4 py-2 font-medium text-gray-800">{value}</td>
-    </tr>
+    </>
   );
 }

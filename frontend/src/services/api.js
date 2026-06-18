@@ -5,20 +5,37 @@ const api = axios.create({
   timeout: 30000,
 });
 
-// Response interceptor for error handling
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       delete api.defaults.headers.common['Authorization'];
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
+      if (window.location.pathname !== '/login') window.location.href = '/login';
     }
     return Promise.reject(error);
   }
 );
+
+export const setAuthToken = (token) => {
+  if (token) api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  else delete api.defaults.headers.common['Authorization'];
+};
+
+export const downloadBlob = (data, filename) => {
+  const url = window.URL.createObjectURL(new Blob([data]));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  window.URL.revokeObjectURL(url);
+};
+
+export const authAPI = {
+  login: (data) => api.post('/auth/login', data),
+  getMe: () => api.get('/auth/me'),
+  changePassword: (data) => api.put('/auth/change-password', data),
+};
 
 export const applicationAPI = {
   getAll: () => api.get('/applications'),
@@ -37,9 +54,7 @@ export const adminAPI = {
   getApplications: (params) => api.get('/admin/applications', { params }),
   getApplication: (id) => api.get(`/admin/applications/${id}`),
   updateStatus: (id, data) => api.patch(`/admin/applications/${id}/status`, data),
-  exportPDF: (id) => api.get(`/admin/applications/${id}/export/pdf`, { responseType: 'blob' }),
   exportWord: (id) => api.get(`/admin/applications/${id}/export/word`, { responseType: 'blob' }),
-  exportAllExcel: () => api.get('/admin/export/applications/excel', { responseType: 'blob' }),
   getStatistics: () => api.get('/admin/statistics'),
 };
 
@@ -49,10 +64,6 @@ export const userAPI = {
   update: (id, data) => api.put(`/users/${id}`, data),
   delete: (id) => api.delete(`/users/${id}`),
   resetPassword: (id, data) => api.post(`/users/${id}/reset-password`, data),
-  importExcel: (formData) => api.post('/users/import/excel', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  }),
-  exportExcel: () => api.get('/users/export/excel', { responseType: 'blob' }),
 };
 
 export const farmerAPI = {
@@ -68,32 +79,22 @@ export const tasdiqlovchiAPI = {
   getApplication: (id) => api.get(`/tasdiqlovchi/applications/${id}`),
   updateStatus: (id, data) => api.patch(`/tasdiqlovchi/applications/${id}/status`, data),
   updateWordContent: (id, data) => api.put(`/tasdiqlovchi/applications/${id}/word-content`, data),
+  saveHtmlContent: (id, html) => api.put(`/tasdiqlovchi/applications/${id}/html-content`, { html }),
   exportWord: (id) => api.get(`/tasdiqlovchi/applications/${id}/word`, { responseType: 'blob' }),
+  previewWord: (id) => api.get(`/tasdiqlovchi/applications/${id}/word`, { responseType: 'arraybuffer' }),
   getStatistics: () => api.get('/tasdiqlovchi/statistics'),
 };
 
 export const imzolovchiAPI = {
   getApplications: (params) => api.get('/imzolovchi/applications', { params }),
   getApplication: (id) => api.get(`/imzolovchi/applications/${id}`),
-  updateWordContent: (id, data) => api.put(`/imzolovchi/applications/${id}/word-content`, data),
-  exportWord: (id) => api.get(`/imzolovchi/applications/${id}/word`, { responseType: 'blob' }),
   sign: (id) => api.post(`/imzolovchi/applications/${id}/sign`),
+  exportWord: (id) => api.get(`/imzolovchi/applications/${id}/word`, { responseType: 'blob' }),
+  previewWord: (id) => api.get(`/imzolovchi/applications/${id}/word`, { responseType: 'arraybuffer' }),
 };
 
-// Login talab qilmaydigan ochiq API
 export const publicAPI = {
-  trackApplication: (appNumber) => api.get(`/public/track/${encodeURIComponent(appNumber)}`),
-};
-
-export const downloadBlob = (blob, filename) => {
-  const url = window.URL.createObjectURL(new Blob([blob]));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  window.URL.revokeObjectURL(url);
+  track: (appNumber) => api.get(`/public/track/${appNumber}`),
 };
 
 export default api;

@@ -10,8 +10,8 @@ export default function ImzolovchiApplicationsList() {
 
   useEffect(() => {
     imzolovchiAPI.getApplications({ status, page, limit: 20 }).then(r => {
-      setApps(r.data.data);
-      setTotal(r.data.total);
+      setApps(r.data.data || []);
+      setTotal(r.data.total || 0);
     });
   }, [status, page]);
 
