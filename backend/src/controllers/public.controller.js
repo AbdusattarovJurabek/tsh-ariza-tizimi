@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const { getWorkingDaysRemaining, getDeadlineDate } = require('../utils/workingDays');
+const { generateApplicationWord } = require('../utils/wordExport');
 const prisma = new PrismaClient();
 
 const STATUS_LABELS = {
@@ -13,92 +14,110 @@ const STATUS_LABELS = {
   REJECTED: "Rad etildi",
 };
 
+const DOCUMENT_FIELDS = [
+  'subject_name', 'stir', 'leader_full_name', 'legal_address', 'mfo',
+  'bank_account', 'bank_name', 'total_land_area', 'garden_area',
+  'land_specialization', 'garden_address', 'land_decision_date',
+  'land_decision_number', 'lease_contract_date', 'lease_contract_number',
+  'registry_number', 'soil_type', 'soil_quality', 'water_supply_info',
+  'weather_analysis', 'fruit_type', 'fruit_variety', 'planting_scheme',
+  'seedling_count', 'planting_period', 'water_source', 'project_amount',
+  'permanent_jobs', 'seasonal_jobs', 'supplier_companies',
+  'scientific_recommendation',
+];
+
+function publicStatus(application) {
+  let countdown = null;
+  let deadlineDate = null;
+  if (application.status === 'APPROVED' && application.approved_at) {
+    countdown = getWorkingDaysRemaining(application.approved_at);
+    deadlineDate = getDeadlineDate(application.approved_at).toISOString();
+  }
+
+  return {
+    app_number: application.app_number,
+    status: application.status,
+    status_label: STATUS_LABELS[application.status] || application.status,
+    submitted_at: application.submitted_at,
+    approved_at: application.approved_at,
+    signed_at: application.signed_at,
+    countdown_days: countdown,
+    deadline_date: deadlineDate,
+  };
+}
+
 exports.trackApplication = async (req, res) => {
   try {
-    const { app_number } = req.params;
-
+    const appNumber = String(req.params.app_number || '').trim().toUpperCase();
     const application = await prisma.application.findUnique({
-      where: { app_number: app_number.trim().toUpperCase() },
-      select: {
-        app_number: true, status: true, word_content: true,
-        subject_name: true, stir: true, leader_full_name: true,
-        legal_address: true, mfo: true, bank_account: true, bank_name: true,
-        total_land_area: true, garden_area: true, land_specialization: true,
-        garden_address: true, land_decision_date: true, land_decision_number: true,
-        lease_contract_date: true, lease_contract_number: true, registry_number: true,
-        soil_type: true, soil_quality: true, water_supply_info: true, weather_analysis: true,
-        fruit_type: true, fruit_variety: true, planting_scheme: true,
-        seedling_count: true, planting_period: true, water_source: true,
-        project_amount: true, permanent_jobs: true, seasonal_jobs: true,
-        supplier_companies: true, scientific_recommendation: true,
-        submitted_at: true, approved_at: true, signed_at: true,
-        created_at: true, admin_comment: true,
-      }
+      where: { app_number: appNumber },
     });
 
     if (!application) {
       return res.status(404).json({ error: 'Ariza topilmadi. Ariza raqamini tekshiring.' });
     }
 
-    let countdown = null;
-    let deadline_date = null;
+    const result = publicStatus(application);
 
-    if (application.status === 'APPROVED' && application.approved_at) {
-      countdown = getWorkingDaysRemaining(application.approved_at);
-      deadline_date = getDeadlineDate(application.approved_at).toISOString();
+    // To'liq hujjat faqat yakuniy imzodan keyin ommaga ochiladi.
+    if (application.status === 'SIGNED') {
+      for (const field of DOCUMENT_FIELDS) result[field] = application[field] ?? '';
+      if (application.word_content) {
+        try {
+          result.word_content = JSON.parse(application.word_content);
+        } catch {
+          result.word_content = null;
+        }
+      } else {
+        result.word_content = null;
+      }
     }
 
-    let word_content = null;
-    if (application.word_content) {
-      try { word_content = JSON.parse(application.word_content); } catch {}
-    }
-
-    res.json({
-      app_number: application.app_number,
-      status: application.status,
-      status_label: STATUS_LABELS[application.status] || application.status,
-      subject_name: application.subject_name || '',
-      stir: application.stir || '',
-      leader_full_name: application.leader_full_name || '',
-      legal_address: application.legal_address || '',
-      mfo: application.mfo || '',
-      bank_account: application.bank_account || '',
-      bank_name: application.bank_name || '',
-      total_land_area: application.total_land_area || null,
-      garden_area: application.garden_area || null,
-      land_specialization: application.land_specialization || '',
-      garden_address: application.garden_address || '',
-      land_decision_date: application.land_decision_date || '',
-      land_decision_number: application.land_decision_number || '',
-      lease_contract_date: application.lease_contract_date || '',
-      lease_contract_number: application.lease_contract_number || '',
-      registry_number: application.registry_number || '',
-      soil_type: application.soil_type || '',
-      soil_quality: application.soil_quality || '',
-      water_supply_info: application.water_supply_info || '',
-      weather_analysis: application.weather_analysis || '',
-      fruit_type: application.fruit_type || '',
-      fruit_variety: application.fruit_variety || '',
-      planting_scheme: application.planting_scheme || '',
-      seedling_count: application.seedling_count || null,
-      planting_period: application.planting_period || '',
-      water_source: application.water_source || '',
-      project_amount: application.project_amount || null,
-      permanent_jobs: application.permanent_jobs || null,
-      seasonal_jobs: application.seasonal_jobs || null,
-      supplier_companies: application.supplier_companies || '',
-      scientific_recommendation: application.scientific_recommendation || '',
-      word_content,
-      submitted_at: application.submitted_at,
-      approved_at: application.approved_at,
-      signed_at: application.signed_at,
-      created_at: application.created_at,
-      admin_comment: application.status === 'HAS_ISSUES' ? application.admin_comment : null,
-      countdown_days: countdown,
-      deadline_date,
-    });
+    res.json(result);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server xatosi' });
+  }
+};
+
+exports.downloadSignedDocument = async (req, res) => {
+  try {
+    const appNumber = String(req.params.app_number || '').trim().toUpperCase();
+    const application = await prisma.application.findUnique({
+      where: { app_number: appNumber },
+      include: {
+        user: { select: { full_name: true, region: true, district: true, phone: true } }
+      }
+    });
+
+    if (!application || application.status !== 'SIGNED') {
+      return res.status(404).json({ error: 'Imzolangan hujjat topilmadi' });
+    }
+
+    let docBuffer;
+    if (application.word_html_content) {
+      const HTMLtoDOCX = require('html-to-docx');
+      docBuffer = await HTMLtoDOCX(application.word_html_content, null, {
+        table: { row: { cantSplit: true } },
+        footer: true,
+        pageNumber: false,
+      });
+    } else {
+      let data = { ...application };
+      if (application.word_content) {
+        try {
+          data = { ...application, ...JSON.parse(application.word_content) };
+        } catch {}
+      }
+      docBuffer = await generateApplicationWord(data);
+    }
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', `attachment; filename="TSH-${application.app_number}.docx"`);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.send(docBuffer);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Word hujjatni yaratishda xato' });
   }
 };

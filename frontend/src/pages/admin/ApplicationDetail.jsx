@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { adminAPI, downloadBlob } from '../../services/api';
+import { adminAPI, downloadBlob, openProtectedFile } from '../../services/api';
 import StatusBadge from '../../components/StatusBadge';
 import { ArrowLeft, FileText, Download, MapPin, Clock, MessageSquare, CheckCircle, X, Share2 } from 'lucide-react';
-import { FILE_TYPE_LABELS, STATUS_LABELS } from '../../utils/constants';
+import { FILE_TYPE_LABELS, STATUS_LABELS, STATUS_TRANSITIONS } from '../../utils/constants';
 import toast from 'react-hot-toast';
 
 function AdminCountdownBanner({ approvedAt, appNumber }) {
@@ -124,6 +124,7 @@ export default function AdminApplicationDetail() {
 
   if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600"></div></div>;
   if (!app) return null;
+  const allowedStatuses = STATUS_TRANSITIONS[app.status] || [];
 
   return (
     <div className="max-w-5xl mx-auto space-y-5">
@@ -161,7 +162,7 @@ export default function AdminApplicationDetail() {
       <div className="card border-2 border-primary-100">
         <h3 className="font-semibold text-gray-800 mb-4 text-sm">Arizani ko'rib chiqish</h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
-          {ADMIN_STATUSES.map(s => (
+          {ADMIN_STATUSES.filter(s => allowedStatuses.includes(s.value)).map(s => (
             <button
               key={s.value}
               onClick={() => setSelectedStatus(s.value)}
@@ -183,7 +184,7 @@ export default function AdminApplicationDetail() {
             placeholder="Foydalanuvchiga izoh yozing..."
           />
         </div>
-        <button
+        {allowedStatuses.length > 0 && <button
           onClick={handleUpdateStatus}
           disabled={!selectedStatus || updating}
           className="btn-primary flex items-center gap-2"
@@ -191,7 +192,7 @@ export default function AdminApplicationDetail() {
           {updating ? (
             <><span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span> Yangilanmoqda...</>
           ) : 'Saqlash'}
-        </button>
+        </button>}
       </div>
 
       {/* Application data */}
@@ -267,10 +268,11 @@ export default function AdminApplicationDetail() {
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-medium text-gray-700 truncate">{label}</p>
                   {file && (
-                    <a href={`/${file.file_path}`} target="_blank" rel="noreferrer"
-                      className="text-xs text-primary-600 hover:underline truncate block">
+                    <button type="button"
+                      onClick={() => openProtectedFile(app.id, file).catch(() => toast.error('Faylni ochishda xato'))}
+                      className="text-xs text-primary-600 hover:underline truncate block text-left">
                       {file.file_name}
-                    </a>
+                    </button>
                   )}
                 </div>
               </div>

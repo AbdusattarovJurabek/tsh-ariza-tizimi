@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const { generateApplicationWord } = require('../utils/wordExport');
+const { canTransition } = require('../utils/applicationRules');
 const prisma = new PrismaClient();
 
 const APPLICATION_INCLUDE = {
@@ -51,7 +52,9 @@ exports.getApplication = async (req, res) => {
       where: { id: parseInt(id) },
       include: { ...APPLICATION_INCLUDE, status_history: { orderBy: { created_at: 'desc' }, take: 5, include: { changed_by: { select: { full_name: true, role: true } } } } }
     });
-    if (!application) return res.status(404).json({ error: 'Ariza topilmadi' });
+    if (!application || !['SENT_TO_SIGNER', 'SIGNED'].includes(application.status)) {
+      return res.status(404).json({ error: 'Ariza topilmadi' });
+    }
 
     if (application.word_content) {
       try { application.word_content = JSON.parse(application.word_content); } catch {}
@@ -71,7 +74,7 @@ exports.updateWordContent = async (req, res) => {
 
     const application = await prisma.application.findUnique({ where: { id: parseInt(id) } });
     if (!application) return res.status(404).json({ error: 'Ariza topilmadi' });
-    if (!['SENT_TO_SIGNER', 'SIGNED'].includes(application.status)) {
+    if (application.status !== 'SENT_TO_SIGNER') {
       return res.status(400).json({ error: "Bu ariza imzolash bosqichida emas" });
     }
 
@@ -95,7 +98,9 @@ exports.exportWord = async (req, res) => {
       where: { id: parseInt(id) },
       include: { files: true, user: { select: { full_name: true, region: true, district: true, phone: true } } }
     });
-    if (!application) return res.status(404).json({ error: 'Ariza topilmadi' });
+    if (!application || !['SENT_TO_SIGNER', 'SIGNED'].includes(application.status)) {
+      return res.status(404).json({ error: 'Ariza topilmadi' });
+    }
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', `attachment; filename="TSH-${application.app_number}.docx"`);
@@ -134,7 +139,7 @@ exports.signApplication = async (req, res) => {
 
     const application = await prisma.application.findUnique({ where: { id: parseInt(id) } });
     if (!application) return res.status(404).json({ error: 'Ariza topilmadi' });
-    if (application.status !== 'SENT_TO_SIGNER') {
+    if (!canTransition(application.status, 'SIGNED')) {
       return res.status(400).json({ error: "Ariza imzolash uchun yuborilmagan" });
     }
 

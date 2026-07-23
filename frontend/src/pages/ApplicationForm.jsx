@@ -181,11 +181,13 @@ export default function ApplicationForm() {
       if (appId) {
         await applicationAPI.update(appId, payload);
         if (showToast) toast.success('Saqlandi');
+        return appId;
       } else {
         const res = await applicationAPI.create(payload);
         setAppId(res.data.id);
         navigate(`/applications/${res.data.id}/edit`, { replace: true });
         if (showToast) toast.success('Ariza yaratildi');
+        return res.data.id;
       }
     } catch (err) {
       toast.error(err.response?.data?.error || 'Saqlashda xato');
@@ -219,6 +221,18 @@ export default function ApplicationForm() {
   // Yuborish — avval tasdiqlash modali
   const handleSubmitClick = () => {
     if (!appId) { toast.error('Avval arizani saqlang'); return; }
+    const allErrors = { ...validateStep1(), ...validateStep2(), ...validateStep4() };
+    if (Object.keys(allErrors).length > 0) {
+      setErrors(allErrors);
+      toast.error("Majburiy maydonlarni to'ldiring");
+      return;
+    }
+    const missingFiles = FILE_TYPES.filter(([type]) => !files.some(file => file.file_type === type));
+    if (missingFiles.length > 0) {
+      setStep(5);
+      toast.error(`${missingFiles.length} ta majburiy hujjat yuklanmagan`);
+      return;
+    }
     setShowConfirm(true);
   };
 
@@ -240,14 +254,15 @@ export default function ApplicationForm() {
     const existing = files.find(f => f.file_type === fileType);
 
     const onDrop = useCallback(async (acceptedFiles) => {
-      if (!appId) { await saveData(false); }
       if (!acceptedFiles[0]) return;
+      const targetAppId = appId || await saveData(false);
+      if (!targetAppId) return;
       setUploadingFile(fileType);
       const formData = new FormData();
       formData.append('file', acceptedFiles[0]);
       formData.append('file_type', fileType);
       try {
-        const res = await applicationAPI.uploadFile(appId, formData);
+        const res = await applicationAPI.uploadFile(targetAppId, formData);
         setFiles(prev => [...prev.filter(f => f.file_type !== fileType), res.data]);
         toast.success('Fayl yuklandi');
       } catch (err) {

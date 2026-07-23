@@ -31,6 +31,20 @@ export const downloadBlob = (data, filename) => {
   window.URL.revokeObjectURL(url);
 };
 
+export const openProtectedFile = async (applicationId, file) => {
+  const response = await api.get(
+    `/applications/${applicationId}/files/${file.id}/download`,
+    { responseType: 'blob' }
+  );
+  const url = window.URL.createObjectURL(response.data);
+  const a = document.createElement('a');
+  a.href = url;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  a.click();
+  window.setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+};
+
 export const authAPI = {
   login: (data) => api.post('/auth/login', data),
   getMe: () => api.get('/auth/me'),

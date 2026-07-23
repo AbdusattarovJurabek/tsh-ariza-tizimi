@@ -4,6 +4,8 @@ export const STATUS_LABELS = {
   UNDER_REVIEW: "Ko'rib chiqilmoqda",
   HAS_ISSUES: 'Kamchilik bor',
   APPROVED: 'Tasdiqlandi',
+  SENT_TO_SIGNER: 'Imzolovchiga yuborildi',
+  SIGNED: 'Imzolandi',
   REJECTED: 'Rad etildi'
 };
 
@@ -13,13 +15,27 @@ export const STATUS_COLORS = {
   UNDER_REVIEW: 'badge-under-review',
   HAS_ISSUES: 'badge-has-issues',
   APPROVED: 'badge-approved',
+  SENT_TO_SIGNER: 'badge-approved',
+  SIGNED: 'badge-approved',
   REJECTED: 'badge-rejected'
 };
 
 export const ROLE_LABELS = {
-  SUPER_ADMIN: 'Super Admin',
-  ADMIN: 'Admin',
+  SUPERADMIN: 'Super Admin',
+  TASDIQLOVCHI: 'Tasdiqlovchi',
+  IMZOLOVCHI: 'Imzolovchi',
   USER: 'Foydalanuvchi'
+};
+
+export const STATUS_TRANSITIONS = {
+  DRAFT: ['SUBMITTED'],
+  HAS_ISSUES: ['SUBMITTED'],
+  SUBMITTED: ['UNDER_REVIEW'],
+  UNDER_REVIEW: ['HAS_ISSUES', 'APPROVED', 'REJECTED'],
+  APPROVED: ['SENT_TO_SIGNER'],
+  SENT_TO_SIGNER: ['SIGNED'],
+  SIGNED: [],
+  REJECTED: [],
 };
 
 export const FILE_TYPE_LABELS = {

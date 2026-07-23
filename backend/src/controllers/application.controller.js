@@ -2,6 +2,12 @@ const { PrismaClient } = require('@prisma/client');
 const path = require('path');
 const fs = require('fs');
 const { generateApplicationWord } = require('../utils/wordExport');
+const { validateUploadedFile } = require('../middleware/upload');
+const {
+  REQUIRED_FILE_TYPES,
+  canTransition,
+  validateApplicationForSubmit,
+} = require('../utils/applicationRules');
 const prisma = new PrismaClient();
 
 const generateAppNumber = async () => {
@@ -23,14 +29,16 @@ exports.createApplication = async (req, res) => {
       const farmer = await prisma.farmer.findFirst({
         where: { id: parseInt(farmer_id), user_id: req.user.id }
       });
-      if (farmer) {
-        farmerData = {
-          leader_full_name: farmer.full_name,
-          legal_address: farmer.legal_address,
-          stir: farmer.stir,
-          total_land_area: farmer.land_area
-        };
+      if (!farmer) {
+        return res.status(400).json({ error: 'Tanlangan fermer sizga tegishli emas yoki topilmadi' });
       }
+      farmerData = {
+        subject_name: farmer.full_name,
+        leader_full_name: farmer.leader_full_name,
+        legal_address: farmer.legal_address,
+        stir: farmer.stir,
+        total_land_area: farmer.land_area
+      };
     }
 
     const application = await prisma.application.create({
@@ -134,34 +142,45 @@ exports.submitApplication = async (req, res) => {
   try {
     const { id } = req.params;
     const application = await prisma.application.findFirst({
-      where: { id: parseInt(id), user_id: req.user.id }
+      where: { id: parseInt(id), user_id: req.user.id },
+      include: { files: { select: { file_type: true } } }
     });
 
     if (!application) {
       return res.status(404).json({ error: 'Ariza topilmadi' });
     }
 
-    if (!['DRAFT', 'HAS_ISSUES'].includes(application.status)) {
+    if (!canTransition(application.status, 'SUBMITTED')) {
       return res.status(400).json({ error: 'Ariza allaqachon yuborilgan' });
     }
 
-    const updated = await prisma.application.update({
-      where: { id: parseInt(id) },
-      data: {
-        status: 'SUBMITTED',
-        submitted_at: new Date()
-      }
-    });
+    const validation = validateApplicationForSubmit(application);
+    if (!validation.valid) {
+      return res.status(400).json({
+        error: validation.errors[0],
+        errors: validation.errors,
+        missing_file_types: validation.missingFileTypes,
+      });
+    }
 
-    await prisma.statusHistory.create({
-      data: {
-        application_id: parseInt(id),
-        old_status: application.status,
-        new_status: 'SUBMITTED',
-        comment: 'Foydalanuvchi tomonidan yuborildi',
-        changed_by_id: req.user.id
-      }
-    });
+    const [updated] = await prisma.$transaction([
+      prisma.application.update({
+        where: { id: parseInt(id) },
+        data: {
+          status: 'SUBMITTED',
+          submitted_at: new Date()
+        }
+      }),
+      prisma.statusHistory.create({
+        data: {
+          application_id: parseInt(id),
+          old_status: application.status,
+          new_status: 'SUBMITTED',
+          comment: 'Foydalanuvchi tomonidan yuborildi',
+          changed_by_id: req.user.id
+        }
+      })
+    ]);
 
     res.json(updated);
   } catch (err) {
@@ -193,6 +212,14 @@ exports.uploadFile = async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ error: 'Fayl tanlanmadi' });
     }
+    if (!REQUIRED_FILE_TYPES.includes(file_type)) {
+      fs.unlinkSync(req.file.path);
+      return res.status(400).json({ error: 'Noto‘g‘ri hujjat turi' });
+    }
+    if (!validateUploadedFile(req.file)) {
+      fs.unlinkSync(req.file.path);
+      return res.status(400).json({ error: 'Fayl tarkibi uning formatiga mos emas' });
+    }
 
     const relativePath = path.relative(
       path.join(__dirname, '../../'),
@@ -215,6 +242,48 @@ exports.uploadFile = async (req, res) => {
     console.error(err);
     if (req.file) fs.unlinkSync(req.file.path);
     res.status(500).json({ error: 'Fayl yuklashda xato' });
+  }
+};
+
+// Fayllar faqat ariza egasi va tegishli xizmat rollari uchun ochiladi.
+exports.downloadFile = async (req, res) => {
+  try {
+    const applicationId = parseInt(req.params.id);
+    const fileId = parseInt(req.params.fileId);
+    if (!Number.isInteger(applicationId) || !Number.isInteger(fileId)) {
+      return res.status(400).json({ error: 'Noto‘g‘ri identifikator' });
+    }
+
+    const file = await prisma.applicationFile.findFirst({
+      where: { id: fileId, application_id: applicationId },
+      include: { application: { select: { user_id: true, status: true } } }
+    });
+    if (!file) return res.status(404).json({ error: 'Fayl topilmadi' });
+
+    const ownsApplication = file.application.user_id === req.user.id;
+    const hasServiceAccess =
+      req.user.role === 'SUPERADMIN' ||
+      (req.user.role === 'TASDIQLOVCHI' && file.application.status !== 'DRAFT') ||
+      (req.user.role === 'IMZOLOVCHI' &&
+        ['SENT_TO_SIGNER', 'SIGNED'].includes(file.application.status));
+    if (!ownsApplication && !hasServiceAccess) {
+      return res.status(403).json({ error: 'Bu faylni ko‘rishga ruxsat yo‘q' });
+    }
+
+    const uploadsRoot = path.resolve(__dirname, '../../uploads');
+    const fullPath = path.resolve(__dirname, '../../', file.file_path);
+    if (!fullPath.startsWith(`${uploadsRoot}${path.sep}`) || !fs.existsSync(fullPath)) {
+      return res.status(404).json({ error: 'Fayl diskda topilmadi' });
+    }
+
+    const safeName = file.file_name.replace(/[\r\n"]/g, '_');
+    res.setHeader('Content-Type', file.mime_type || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(safeName)}`);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.sendFile(fullPath);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Faylni yuklab olishda xato' });
   }
 };
 
@@ -259,7 +328,7 @@ exports.exportMyApplicationWord = async (req, res) => {
       }
     });
     if (!application) return res.status(404).json({ error: 'Ariza topilmadi' });
-    if (application.status !== 'APPROVED') {
+    if (!['APPROVED', 'SENT_TO_SIGNER', 'SIGNED'].includes(application.status)) {
       return res.status(403).json({ error: 'Faqat tasdiqlangan arizalarni yuklab olish mumkin' });
     }
     const docBuffer = await generateApplicationWord(application);

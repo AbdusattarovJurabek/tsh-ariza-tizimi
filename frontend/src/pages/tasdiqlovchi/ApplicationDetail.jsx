@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { tasdiqlovchiAPI, downloadBlob } from '../../services/api';
 import WordDocPreview from '../../components/WordDocPreview';
 import toast from 'react-hot-toast';
+import { STATUS_TRANSITIONS } from '../../utils/constants';
 
 const STATUS_COLORS = {
   SUBMITTED:'bg-blue-100 text-blue-800', UNDER_REVIEW:'bg-yellow-100 text-yellow-800',
@@ -72,9 +73,10 @@ export default function TasdiqlovchiApplicationDetail() {
     </div>
   );
 
-  const isReadOnly      = ['SENT_TO_SIGNER', 'SIGNED'].includes(app.status);
+  const isReadOnly      = !['UNDER_REVIEW', 'APPROVED'].includes(app.status);
   const canSendToSigner = app.status === 'APPROVED';
-  const canChangeStatus = !isReadOnly;
+  const allowedStatuses = STATUS_TRANSITIONS[app.status] || [];
+  const canChangeStatus = allowedStatuses.length > 0;
 
   return (
     <div className="flex flex-col -m-4 lg:-m-6" style={{ height: 'calc(100vh - 64px)' }}>
@@ -132,11 +134,14 @@ export default function TasdiqlovchiApplicationDetail() {
             <select value={newStatus} onChange={e => setNewStatus(e.target.value)}
               className="w-full border rounded-lg px-3 py-2 mb-3 text-sm">
               <option value="">Tanlang...</option>
-              <option value="UNDER_REVIEW">Ko'rib chiqilmoqda</option>
-              <option value="APPROVED">Tasdiqlash</option>
-              <option value="HAS_ISSUES">Kamchilik bor</option>
-              <option value="REJECTED">Rad etish</option>
-              <option value="SENT_TO_SIGNER">Imzolovchiga yuborish</option>
+              {[
+                ['UNDER_REVIEW', "Ko'rib chiqilmoqda"],
+                ['APPROVED', 'Tasdiqlash'],
+                ['HAS_ISSUES', 'Kamchilik bor'],
+                ['REJECTED', 'Rad etish'],
+                ['SENT_TO_SIGNER', 'Imzolovchiga yuborish'],
+              ].filter(([value]) => allowedStatuses.includes(value))
+                .map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
             <textarea value={comment} onChange={e => setComment(e.target.value)}
               placeholder="Izoh..." rows={3}

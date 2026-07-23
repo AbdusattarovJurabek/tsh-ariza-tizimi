@@ -40,12 +40,16 @@ Brauzer avtomatik ochiladi: http://localhost:3000
 
 ---
 
-## Login malumotlari
+## Login ma'lumotlari (development)
+
+Production parollari `.env` faylida beriladi. Loyiha ildizidagi
+`.env.example` faylidan namuna sifatida foydalaning.
 
 | Rol | Login | Parol |
 |-----|-------|-------|
 | Super Admin | superadmin | Admin@123 |
-| Admin | admin1 | Admin@123 |
+| Tasdiqlovchi | tasdiqlovchi1 | Admin@123 |
+| Imzolovchi | imzolovchi1 | Admin@123 |
 | Foydalanuvchi | user001 | User@123 |
 
 ---

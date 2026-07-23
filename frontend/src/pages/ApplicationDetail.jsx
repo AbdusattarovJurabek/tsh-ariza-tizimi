@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { applicationAPI, downloadBlob } from '../services/api';
+import { applicationAPI, downloadBlob, openProtectedFile } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
 import { ArrowLeft, Edit2, Send, Download, MapPin, MessageSquare, Clock, FileText, Share2, CheckCircle } from 'lucide-react';
 import { FILE_TYPE_LABELS, STATUS_LABELS } from '../utils/constants';
@@ -160,7 +160,7 @@ export default function ApplicationDetail() {
           </div>
         </div>
         <div className="flex gap-2 flex-shrink-0">
-          {app.status === 'APPROVED' && (
+          {['APPROVED', 'SENT_TO_SIGNER', 'SIGNED'].includes(app.status) && (
             <button
               onClick={handleDownloadWord}
               disabled={downloading}
@@ -273,10 +273,11 @@ export default function ApplicationDetail() {
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-medium text-gray-700 truncate">{label}</p>
                   {file && (
-                    <a href={`/${file.file_path}`} target="_blank" rel="noreferrer"
-                      className="text-xs text-primary-600 hover:underline truncate block">
+                    <button type="button"
+                      onClick={() => openProtectedFile(app.id, file).catch(() => toast.error('Faylni ochishda xato'))}
+                      className="text-xs text-primary-600 hover:underline truncate block text-left">
                       {file.file_name}
-                    </a>
+                    </button>
                   )}
                 </div>
               </div>

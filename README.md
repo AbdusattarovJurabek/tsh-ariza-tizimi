@@ -8,8 +8,9 @@ Bog' tashkil etish bo'yicha texnik shart arizalarini elektron topshirish va bosh
 ## Tizim imkoniyatlari
 
 - **Foydalanuvchilar:** Login/parol orqali kirish, 6 bosqichli ariza to'ldirish, 12 turdagi hujjat yuklash
-- **Admin:** Arizalarni ko'rish, status qo'yish, izoh yozish, PDF/Word export
-- **Super Admin:** Foydalanuvchilarni boshqarish, Excel import/export, statistika
+- **Tasdiqlovchi:** Arizalarni ko'rish, tekshirish, izoh yozish va tasdiqlash
+- **Imzolovchi:** Tasdiqlangan texnik shartni imzolash
+- **Super Admin:** Foydalanuvchilarni boshqarish, Excel import/export va statistika
 - **Xavfsizlik:** JWT, bcrypt, RBAC, fayl validatsiya
 
 ---
@@ -28,7 +29,7 @@ Bog' tashkil etish bo'yicha texnik shart arizalarini elektron topshirish va bosh
 
 ```bash
 cd backend
-cp ../.env.example .env
+cp .env.example .env
 # .env faylida DATABASE_URL ni to'g'rilang
 
 npm install
@@ -64,12 +65,17 @@ Brauzerda: **http://localhost:3000**
 
 ---
 
-## Login ma'lumotlari (test)
+## Login ma'lumotlari (development)
+
+Productionda standart parollar ishlatilmaydi. `.env.example` nusxasidagi
+`SEED_ADMIN_PASSWORD` va `SEED_USER_PASSWORD` qiymatlarini xavfsiz parollar
+bilan to'ldiring.
 
 | Rol | Login | Parol |
 |-----|-------|-------|
 | Super Admin | `superadmin` | `Admin@123` |
-| Admin | `admin1` | `Admin@123` |
+| Tasdiqlovchi | `tasdiqlovchi1` | `Admin@123` |
+| Imzolovchi | `imzolovchi1` | `Admin@123` |
 | Foydalanuvchi | `user001` | `User@123` |
 
 ---
