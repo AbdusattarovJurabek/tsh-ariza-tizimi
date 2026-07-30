@@ -1,6 +1,7 @@
 /**
  * WordDocPreview
  * - TSH_template.docx ni mammoth orqali HTML ga aylantirib ko'rsatadi
+ * - A4 sahifalarga (1-list, 2-list) ajratib chiroyli ko'rsatadi
  * - contenteditable: istalgan matnni bosib o'zgartirish mumkin
  * - getHtml() ref orqali joriy HTML ni olish imkonini beradi
  * - Rasmlarni o'chirish tugmasi (editable rejimda)
@@ -8,24 +9,26 @@
 import { useEffect, useState, useRef, useImperativeHandle, forwardRef, useCallback } from 'react';
 
 const WordDocPreview = forwardRef(function WordDocPreview({ fetchFn, trigger = 0, editable = true }, ref) {
-  const [html, setHtml]       = useState('');
+  const [pages, setPages]     = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
   const [imgOverlay, setImgOverlay] = useState(null); // { top, left, img }
-  const contentRef = useRef(null);
-  const pageRef    = useRef(null);
+  const pageRef = useRef(null);
 
   useImperativeHandle(ref, () => ({
-    getHtml: () => contentRef.current?.innerHTML || '',
+    getHtml: () => {
+      const elems = pageRef.current?.querySelectorAll('.word-content');
+      if (!elems || elems.length === 0) return '';
+      return Array.from(elems).map(el => el.innerHTML).join('<hr class="page-break" />');
+    },
   }));
 
   // Rasmni o'chirish
   const deleteImage = useCallback(() => {
     if (!imgOverlay?.img) return;
     const img = imgOverlay.img;
-    // Agar ota element faqat shu rasmdan iborat bo'lsa — otasini ham o'chir
     const parent = img.parentElement;
-    if (parent && parent !== contentRef.current && parent.childNodes.length === 1) {
+    if (parent && parent.childNodes.length === 1) {
       parent.remove();
     } else {
       img.remove();
@@ -35,8 +38,8 @@ const WordDocPreview = forwardRef(function WordDocPreview({ fetchFn, trigger = 0
 
   // Rasm ustiga bosilganda overlay ko'rsat
   useEffect(() => {
-    if (!html || !editable) return;
-    const container = contentRef.current;
+    if (pages.length === 0 || !editable) return;
+    const container = pageRef.current;
     if (!container) return;
 
     const handleClick = (e) => {
@@ -57,7 +60,7 @@ const WordDocPreview = forwardRef(function WordDocPreview({ fetchFn, trigger = 0
 
     container.addEventListener('click', handleClick);
     return () => container.removeEventListener('click', handleClick);
-  }, [html, editable]);
+  }, [pages, editable]);
 
   const loadPreview = async () => {
     setLoading(true);
@@ -84,8 +87,35 @@ const WordDocPreview = forwardRef(function WordDocPreview({ fetchFn, trigger = 0
         convertFn = (m.default?.convertToHtml || m.convertToHtml).bind(m.default || m);
       }
 
-      const result = await convertFn({ arrayBuffer });
-      setHtml(result.value || '<p>(Hujjat bo\'sh)</p>');
+      const result = await convertFn({
+        arrayBuffer,
+        styleMap: [
+          "br[type='page'] => hr.page-break",
+        ]
+      });
+
+      const rawHtml = result.value || '<p>(Hujjat bo\'sh)</p>';
+
+      // A4 sahifalarga bo'lish logic-i
+      let pageList = [];
+      if (rawHtml.includes('class="page-break"') || rawHtml.includes('<hr')) {
+        pageList = rawHtml.split(/<hr[^>]*class="page-break"[^>]*>|<hr[^>]*>/i);
+      } else if (rawHtml.includes('Toshkent - 2026')) {
+        const idx = rawHtml.indexOf('Toshkent - 2026');
+        const pEnd = rawHtml.indexOf('</p>', idx);
+        if (idx !== -1 && pEnd !== -1) {
+          const page1 = rawHtml.slice(0, pEnd + 4);
+          const page2 = rawHtml.slice(pEnd + 4);
+          pageList = [page1, page2];
+        } else {
+          pageList = [rawHtml];
+        }
+      } else {
+        pageList = [rawHtml];
+      }
+
+      const filteredPages = pageList.filter(p => p && p.trim().length > 0);
+      setPages(filteredPages.length > 0 ? filteredPages : [rawHtml]);
     } catch (e) {
       console.error('Word preview xatosi:', e);
       setError(`Xato: ${e.message || 'Noma\'lum'}`);
@@ -102,8 +132,8 @@ const WordDocPreview = forwardRef(function WordDocPreview({ fetchFn, trigger = 0
       {/* Toolbar */}
       <div className="shrink-0 bg-gray-200 px-3 py-1.5 flex items-center justify-between border-b">
         <span className="text-xs text-gray-500 flex items-center gap-1">
-          📄 Word hujjat ko'rinishi
-          {editable && !loading && html && (
+          📄 Word hujjat ko'rinishi ({pages.length} ta list)
+          {editable && !loading && pages.length > 0 && (
             <span className="ml-2 text-blue-600 font-medium">✏️ Matnni bosib tahrirlang · Rasmni bosib o'chiring</span>
           )}
         </span>
@@ -134,8 +164,8 @@ const WordDocPreview = forwardRef(function WordDocPreview({ fetchFn, trigger = 0
           </div>
         )}
 
-        {html && !loading && (
-          <div className="p-6 flex justify-center">
+        {pages.length > 0 && !loading && (
+          <div className="p-6 flex flex-col items-center gap-8">
             <style>{`
               .word-content p {
                 margin: 4px 0;
@@ -200,20 +230,27 @@ const WordDocPreview = forwardRef(function WordDocPreview({ fetchFn, trigger = 0
               </div>
             )}
 
-            {/* A4 sahifa */}
-            <div
-              className="bg-white shadow-xl relative"
-              style={{ width: '210mm', minHeight: '297mm', padding: '20mm 25mm' }}
-            >
+            {/* Har bir A4 sahifa alohida oq varaq (list) sathi sifatida */}
+            {pages.map((pageHtml, index) => (
               <div
-                ref={contentRef}
-                className="word-content"
-                contentEditable={editable}
-                suppressContentEditableWarning
-                dangerouslySetInnerHTML={{ __html: html }}
-                style={{ outline: 'none', minHeight: 200 }}
-              />
-            </div>
+                key={index}
+                className="bg-white shadow-xl relative border border-gray-200 rounded-sm transition-all"
+                style={{ width: '210mm', minHeight: '297mm', padding: '20mm 25mm' }}
+              >
+                {/* List belgisi badge-i */}
+                <div className="absolute top-4 right-4 text-xs font-semibold px-2 py-0.5 bg-gray-100 text-gray-500 rounded border border-gray-200 select-none">
+                  {index + 1}-list
+                </div>
+
+                <div
+                  className="word-content"
+                  contentEditable={editable}
+                  suppressContentEditableWarning
+                  dangerouslySetInnerHTML={{ __html: pageHtml }}
+                  style={{ outline: 'none', minHeight: 200 }}
+                />
+              </div>
+            ))}
           </div>
         )}
       </div>
