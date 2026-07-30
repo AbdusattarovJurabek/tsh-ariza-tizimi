@@ -35,6 +35,10 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 const uploadsDir = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
+// Process Word template tags cleanly
+const { processTemplateFile } = require('./utils/cleanTemplate');
+processTemplateFile();
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/applications', applicationRoutes);
