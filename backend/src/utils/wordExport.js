@@ -65,11 +65,12 @@ const generateApplicationWord = async (application) => {
 
   const regDist = extractRegionAndDistrict(application);
   let subjectName = application.subject_name || application.leader_full_name || '';
-  subjectName = subjectName.replace(/^["'“«""'”»\s]+|["'“«""'”»\s]+$/g, '').trim();
+  subjectName = subjectName.replace(/["'“«"”»]/g, '').trim();
   subjectName = subjectName.replace(/fermer xo[‘'ʻ`]jaligi/gi, '').trim();
   const gardenArea = application.garden_area ? String(application.garden_area) : (application.total_land_area ? String(application.total_land_area) : '');
   const numArea = Number(gardenArea) || 0;
   const bogLabel = numArea >= 10 ? "sanoatlashgan intensiv bog‘" : "intensiv bog‘";
+  const bogTitleLabel = numArea >= 10 ? "Sanoatlashgan intensiv bog‘" : "Intensiv bog‘";
   const bogTokzorLabel = numArea >= 10 ? "sanoatlashgan intensiv bog‘-tokzor" : "intensiv bog‘-tokzor";
 
   const stir = application.stir || '';
@@ -95,6 +96,7 @@ const generateApplicationWord = async (application) => {
   xml = replaceTagInXml(xml, '{subject_name}', subjectName);
   xml = replaceTagInXml(xml, '{garden_area}', gardenArea);
   xml = replaceTagInXml(xml, '{bog_type_label}', bogLabel);
+  xml = replaceTagInXml(xml, '{bog_title_label}', bogTitleLabel);
   xml = replaceTagInXml(xml, '{bog_tokzor_label}', bogTokzorLabel);
   xml = replaceTagInXml(xml, '{stir}', stir);
   xml = replaceTagInXml(xml, '{leader_full_name}', leaderName);
