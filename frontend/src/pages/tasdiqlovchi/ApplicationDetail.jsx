@@ -48,13 +48,19 @@ export default function TasdiqlovchiApplicationDetail() {
 
   const downloadWord = async () => {
     try {
-      // Avval saqlash
-      const html = previewRef.current?.getHtml();
-      if (html) await tasdiqlovchiAPI.saveHtmlContent(id, html);
+      try {
+        const html = previewRef.current?.getHtml();
+        if (html) await tasdiqlovchiAPI.saveHtmlContent(id, html);
+      } catch (e) {
+        console.warn('HTML content saqlashda ogohlik:', e);
+      }
       const r = await tasdiqlovchiAPI.exportWord(id);
       downloadBlob(r.data, `TSH-${app.app_number}.docx`);
       toast.success('Word yuklanmoqda...');
-    } catch { toast.error('Word yaratishda xato'); }
+    } catch (err) {
+      console.error('Word export error:', err);
+      toast.error('Word yaratishda xato');
+    }
   };
 
   const updateStatus = async () => {
