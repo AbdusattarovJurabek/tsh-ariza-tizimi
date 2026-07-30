@@ -2,9 +2,8 @@
  * WordDocPreview
  * - TSH_template.docx ni mammoth orqali HTML ga aylantirib ko'rsatadi
  * - A4 sahifalarga (1-list, 2-list) ajratib chiroyli ko'rsatadi
- * - contenteditable: istalgan matnni bosib o'zgartirish mumkin
- * - getHtml() ref orqali joriy HTML ni olish imkonini beradi
- * - Rasmlarni o'chirish tugmasi (editable rejimda)
+ * - Yon va ustki/ostki masofalar bir xil 20mm (equal margins)
+ * - 1-list muqovasida "Toshkent - 2026" eng pastki qismida joylashadi
  */
 import { useEffect, useState, useRef, useImperativeHandle, forwardRef, useCallback } from 'react';
 
@@ -167,6 +166,11 @@ const WordDocPreview = forwardRef(function WordDocPreview({ fetchFn, trigger = 0
         {pages.length > 0 && !loading && (
           <div className="p-6 flex flex-col items-center gap-8">
             <style>{`
+              .word-content {
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+              }
               .word-content p {
                 margin: 4px 0;
                 font-family: 'Times New Roman', serif;
@@ -193,7 +197,7 @@ const WordDocPreview = forwardRef(function WordDocPreview({ fetchFn, trigger = 0
               }
               .word-content img {
                 display: block;
-                margin: 8px auto !important;
+                margin: 12px auto !important;
                 max-width: 180px !important;
                 max-height: 180px !important;
                 height: auto !important;
@@ -206,6 +210,13 @@ const WordDocPreview = forwardRef(function WordDocPreview({ fetchFn, trigger = 0
               .word-content img.img-selected {
                 outline: 2px solid #ef4444;
                 outline-offset: 2px;
+              }
+              /* 1-list muqovasidagi eng oxirgi p ("Toshkent - 2026") ni eng pastga surish */
+              .word-content-page1 p:last-child {
+                margin-top: auto !important;
+                text-align: center !important;
+                font-weight: bold;
+                padding-top: 16px;
               }
               [contenteditable]:focus { outline: none; }
               [contenteditable] p:hover { background: rgba(59,130,246,0.03); }
@@ -231,26 +242,35 @@ const WordDocPreview = forwardRef(function WordDocPreview({ fetchFn, trigger = 0
             )}
 
             {/* Har bir A4 sahifa alohida oq varaq (list) sathi sifatida */}
-            {pages.map((pageHtml, index) => (
-              <div
-                key={index}
-                className="bg-white shadow-xl relative border border-gray-200 rounded-sm transition-all"
-                style={{ width: '210mm', minHeight: '297mm', padding: '20mm 25mm' }}
-              >
-                {/* List belgisi badge-i */}
-                <div className="absolute top-4 right-4 text-xs font-semibold px-2 py-0.5 bg-gray-100 text-gray-500 rounded border border-gray-200 select-none">
-                  {index + 1}-list
-                </div>
-
+            {pages.map((pageHtml, index) => {
+              const isPage1 = index === 0;
+              return (
                 <div
-                  className="word-content"
-                  contentEditable={editable}
-                  suppressContentEditableWarning
-                  dangerouslySetInnerHTML={{ __html: pageHtml }}
-                  style={{ outline: 'none', minHeight: 200 }}
-                />
-              </div>
-            ))}
+                  key={index}
+                  className="bg-white shadow-2xl relative border border-gray-200 rounded-sm flex flex-col justify-between transition-all"
+                  style={{
+                    width: '210mm',
+                    minHeight: '297mm',
+                    height: '297mm',
+                    padding: '20mm 20mm', // yon va ustki/ostki masofalar bir xil 20mm
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  {/* List belgisi badge-i */}
+                  <div className="absolute top-4 right-4 text-xs font-semibold px-2 py-0.5 bg-gray-100 text-gray-400 rounded border border-gray-100 select-none">
+                    {index + 1}-list
+                  </div>
+
+                  <div
+                    className={`word-content ${isPage1 ? 'word-content-page1' : ''}`}
+                    contentEditable={editable}
+                    suppressContentEditableWarning
+                    dangerouslySetInnerHTML={{ __html: pageHtml }}
+                    style={{ outline: 'none' }}
+                  />
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
