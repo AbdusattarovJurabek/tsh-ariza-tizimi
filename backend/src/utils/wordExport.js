@@ -139,10 +139,6 @@ const generateApplicationWord = async (application) => {
   });
 
   let docBuffer = doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' });
-  const qrBuffer = await generateQRBuffer(trackingUrl);
-  if (qrBuffer) {
-    docBuffer = await injectQRCode(docBuffer, qrBuffer);
-  }
   return docBuffer;
 };
 

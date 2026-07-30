@@ -36,6 +36,8 @@ function processTemplateFile() {
     xml = replaceParagraphText(xml, /10 gektar maydonda/i, '{garden_area} gektar maydonda');
     xml = replaceParagraphText(xml, /sanoatlashgan intensiv bog‘ barpo etish bo‘yicha/i, '{bog_type_label} barpo etish bo‘yicha');
 
+    xml = replaceParagraphText(xml, /Toshkent\s*-\s*2026/i, 'Toshkent - 2026</w:t></w:r></w:p><w:p><w:r><w:br w:type="page"/>');
+
     xml = replaceParagraphText(xml, /hududlarda sanoatlashgan intensiv bog‘ barpo etish uchun/i, 'Ushbu texnik shart (TSH) O‘zbekiston Respublikasi Prezidentining 2024-yil 30-sentabrdagi PF-151-son Farmoni, 2024-yil 30-sentabrdagi PQ-344-son Qarori, 2026-yil 9-iyundagi PF-108-son Farmoni, Vazirlar Mahkamasining 2025-yil 23-apreldagi 255-son Qarori ijrosini ta’minlash maqsadida hududlarda {bog_type_label} barpo etish uchun “{subject_name}” tomonidan taklif etilayotgan faoliyatning samaradorligi va iqtisodiy maqsadga muvofiqligini asoslash, amaldagi qonunchilik, normalar, ko‘rsatmalar va standartlarga muvofiq ishlab chiqilgan.');
 
     xml = replaceParagraphText(xml, /FAYZULLA BOBO MEVALI BOG‘LARI.*STIR/i, '“{subject_name}”, STIR: {stir}.');
