@@ -60,31 +60,33 @@ const generateApplicationWord = async (application) => {
 
   const trackingUrl = APP_BASE_URL + '/track/' + (application.app_number || '');
 
+  const regDist = extractRegionAndDistrict(application);
+
   doc.render({
+    region_name:               regDist.region,
+    district_name:             regDist.district,
     subject_name:              application.subject_name              || '',
     stir:                      application.stir                      || '',
     leader_full_name:          application.leader_full_name          || '',
-    legal_address:             application.legal_address             || '',
-    mfo:                       application.mfo                       || '',
-    bank_account:              application.bank_account              || '',
-    bank_name:                 application.bank_name                 || '',
-    total_land_area:           application.total_land_area           ? String(application.total_land_area) : '',
-    garden_address:            application.garden_address            || '',
+    legal_address:             application.legal_address             || application.garden_address || '',
+    total_land_area:           application.total_land_area           ? String(application.total_land_area) : (application.garden_area ? String(application.garden_area) : ''),
+    garden_address:            application.garden_address            || application.legal_address || '',
     garden_area:               application.garden_area               ? String(application.garden_area) : '',
     location_url:              application.location_url              || '',
     qr_code:                   trackingUrl,
-    land_specialization:       application.land_specialization       || '',
+    land_specialization:       application.land_specialization       || 'Bog‘dorchilik',
     land_decision:             formatLandDecision(application),
     lease_contract:            formatLeaseContract(application),
-    registry_number:           application.registry_number           || '',
+    registry_info:             formatRegistryInfo(application),
     soil_info:                 formatSoilInfo(application),
-    water_supply_info:         application.water_supply_info         || '',
-    weather_analysis:          application.weather_analysis          || '',
-    scientific_recommendation: application.scientific_recommendation || 'Mavjud emas.',
+    water_supply_info:         formatWaterSupplyInfo(application),
+    weather_analysis:          formatWeatherAnalysis(application),
+    scientific_recommendation: formatScientificRecommendation(application),
     fruit_type:                application.fruit_type                || '',
     fruit_variety:             application.fruit_variety             || '',
     planting_scheme:           application.planting_scheme           || '',
-    seedling_count:            formatSeedlingCount(application),
+    seedling_info:             formatSeedlingInfo(application),
+    seedling_count:            application.seedling_count            ? String(application.seedling_count) : '',
     project_amount:            application.project_amount            ? Number(application.project_amount).toLocaleString('uz-UZ') : '',
     permanent_jobs:            application.permanent_jobs            ? String(application.permanent_jobs) : '',
     seasonal_jobs:             application.seasonal_jobs             ? String(application.seasonal_jobs)  : '',
@@ -99,35 +101,115 @@ const generateApplicationWord = async (application) => {
   return docBuffer;
 };
 
+function extractRegionAndDistrict(app) {
+  const addr = app.legal_address || app.garden_address || '';
+  let region = 'Navoiy';
+  let district = 'Xatirchi';
+  if (addr.includes('viloyati')) {
+    const parts = addr.split('viloyati');
+    region = parts[0].trim().split(' ').pop();
+    if (parts[1] && parts[1].includes('tumani')) {
+      district = parts[1].split('tumani')[0].replace(/,/g, '').trim().split(' ').pop();
+    }
+  }
+  return { region, district };
+}
+
 function formatLandDecision(app) {
+  if (Array.isArray(app.land_decisions) && app.land_decisions.length > 0) {
+    return app.land_decisions
+      .map(d => `${d.decision_date || ''} y., №${d.decision_number || ''}-son`)
+      .join('; ');
+  }
   const date = app.land_decision_date   || '';
   const num  = app.land_decision_number || '';
-  if (date && num) return date + ', ' + num + '-son.';
+  if (date && num) return date + ' y., №' + num + '-son';
   return date || num || '';
 }
 
 function formatLeaseContract(app) {
+  if (Array.isArray(app.lease_contracts) && app.lease_contracts.length > 0) {
+    return app.lease_contracts
+      .map(c => `${c.contract_date || ''} y., №${c.contract_number || ''}-son`)
+      .join('; ');
+  }
   const date = app.lease_contract_date   || '';
   const num  = app.lease_contract_number || '';
-  if (date && num) return date + ', ' + num + '-son.';
+  if (date && num) return date + ' y., №' + num + '-son';
+  return date || num || '';
+}
+
+function formatRegistryInfo(app) {
+  const date = app.registry_date || '';
+  const num = app.registry_number || '';
+  if (date && num) return date + ' y., R-' + num;
   return date || num || '';
 }
 
 function formatSoilInfo(app) {
+  const info = app.soil_analysis_info;
+  if (info && typeof info === 'object' && info.org) {
+    let res = info.org;
+    if (info.date) res += `ning ${info.date} yildagi`;
+    if (info.number) res += ` №${info.number}`;
+    res += ' xulosasi.';
+    return res;
+  }
   const parts = [];
   if (app.soil_type)        parts.push('Tuproq turi: ' + app.soil_type);
   if (app.soil_composition) parts.push('Tarkibi: ' + app.soil_composition);
   if (app.soil_quality)     parts.push('Sifati: ' + app.soil_quality);
   if (app.soil_fertility)   parts.push('Unumdorligi: ' + app.soil_fertility);
-  return parts.length ? parts.join('; ') + '.' : '';
+  return parts.length ? parts.join('; ') + '.' : 'Tuproq tahlili ma\'lumoti.';
 }
 
-function formatSeedlingCount(app) {
-  const count = app.seedling_count || '';
-  const area  = app.garden_area    || '';
-  if (count && area) return area + " gektarga " + count + " tup ko'chat.";
-  if (count)         return count + " tup ko'chat.";
+function formatWaterSupplyInfo(app) {
+  const info = app.water_conclusion_info;
+  if (info && typeof info === 'object' && info.org) {
+    let res = info.org;
+    if (info.date) res += `ning ${info.date} yildagi`;
+    if (info.number) res += ` №${info.number}`;
+    res += ' ma’lumotnomasi.';
+    return res;
+  }
+  return app.water_supply_info || 'Suv ta\'minoti ma\'lumotnomasi.';
+}
+
+function formatWeatherAnalysis(app) {
+  const info = app.weather_data_info;
+  if (info && typeof info === 'object' && info.org) {
+    let res = info.org;
+    if (info.date) res += `ning ${info.date} yildagi`;
+    if (info.number) res += ` №${info.number}`;
+    res += ' ma’lumotnomasi.';
+    return res;
+  }
+  return app.weather_analysis || 'Ob-havo tahlili ma\'lumotnomasi.';
+}
+
+function formatScientificRecommendation(app) {
+  const info = app.scientific_conclusion_info;
+  if (info && typeof info === 'object' && info.org) {
+    let res = info.org;
+    if (info.date) res += `ning ${info.date} yildagi`;
+    if (info.number) res += ` №${info.number}`;
+    res += ' tavsiyasi.';
+    return res;
+  }
+  return app.scientific_recommendation || 'Mavjud emas.';
+}
+
+function formatSeedlingInfo(app) {
+  const count = Number(app.seedling_count || 0);
+  const area  = Number(app.garden_area || 0);
+  if (count > 0 && area > 0) {
+    const perHa = Math.round(count / area);
+    return `1 gektarga ${perHa} tup, jami ${area} gektarga ${count.toLocaleString('uz-UZ')} tup.`;
+  }
+  if (count > 0) return `${count.toLocaleString('uz-UZ')} tup ko'chat.`;
   return '';
 }
+
+module.exports = { generateApplicationWord };
 
 module.exports = { generateApplicationWord };
