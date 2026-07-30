@@ -251,7 +251,7 @@ const WordDocPreview = forwardRef(function WordDocPreview({ fetchFn, trigger = 0
                   style={{
                     width: '210mm',
                     minHeight: '297mm',
-                    height: '297mm',
+                    height: isPage1 ? '297mm' : 'auto',
                     padding: '20mm 20mm', // yon va ustki/ostki masofalar bir xil 20mm
                     boxSizing: 'border-box',
                   }}

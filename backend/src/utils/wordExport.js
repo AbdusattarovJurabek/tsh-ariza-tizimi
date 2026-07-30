@@ -64,7 +64,9 @@ const generateApplicationWord = async (application) => {
   let xml = zip.file('word/document.xml').asText();
 
   const regDist = extractRegionAndDistrict(application);
-  const subjectName = application.subject_name || application.leader_full_name || '';
+  let subjectName = application.subject_name || application.leader_full_name || '';
+  subjectName = subjectName.replace(/^["'“«""'”»\s]+|["'“«""'”»\s]+$/g, '').trim();
+  subjectName = subjectName.replace(/fermer xo[‘'ʻ`]jaligi/gi, '').trim();
   const gardenArea = application.garden_area ? String(application.garden_area) : (application.total_land_area ? String(application.total_land_area) : '');
   const numArea = Number(gardenArea) || 0;
   const bogLabel = numArea >= 10 ? "sanoatlashgan intensiv bog‘" : "intensiv bog‘";
