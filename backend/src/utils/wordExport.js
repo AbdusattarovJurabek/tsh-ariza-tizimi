@@ -49,29 +49,12 @@ async function injectQRCode(docBuffer, qrPngBuffer) {
   }
 }
 
-function replaceParagraphText(xmlStr, searchTextPattern, newText) {
-  const pRegex = /<w:p[\s\S]*?<\/w:p>/g;
-  return xmlStr.replace(pRegex, (pXml) => {
-    const text = pXml.replace(/<[^>]+>/g, '').trim();
-    if (searchTextPattern.test(text)) {
-      const escapedText = String(newText || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-      let firstDone = false;
-      return pXml.replace(/<w:t[\s\S]*?>([\s\S]*?)<\/w:t>/g, (tXml) => {
-        if (!firstDone) {
-          firstDone = true;
-          const prefix = tXml.slice(0, tXml.indexOf('>') + 1);
-          return prefix + escapedText + '</w:t>';
-        } else {
-          const prefix = tXml.slice(0, tXml.indexOf('>') + 1);
-          return prefix + '</w:t>';
-        }
-      });
-    }
-    return pXml;
-  });
+function replaceTagInXml(xmlStr, tag, value) {
+  const escapedValue = String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  return xmlStr.split(tag).join(escapedValue);
 }
 
 const generateApplicationWord = async (application) => {
@@ -104,45 +87,29 @@ const generateApplicationWord = async (application) => {
   const scheme = application.planting_scheme || '';
   const seedlingInfo = formatSeedlingInfo(application);
 
-  // 1. Cover Page replacements
-  xml = replaceParagraphText(xml, /Navoiy viloyati Xatirchi tumanida/i, `${regDist.region} viloyati ${regDist.district} tumanida “${subjectName}”`);
-  xml = replaceParagraphText(xml, /10 gektar maydonda/i, `${gardenArea} gektar maydonda`);
-  xml = replaceParagraphText(xml, /sanoatlashgan intensiv bog‘ barpo etish bo‘yicha/i, `${bogLabel} barpo etish bo‘yicha`);
-
-  // Insert Page Break after Toshkent - 2026 paragraph cleanly
-  const pageBreakXml = '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
-  xml = xml.replace(/(Toshkent\s*-\s*2026<\/w:t><\/w:r><\/w:p>)/i, '$1' + pageBreakXml);
-
-  // 2. Section I replacements
-  xml = replaceParagraphText(xml, /hududlarda sanoatlashgan intensiv bog‘ barpo etish uchun/i, `Ushbu texnik shart (TSH) O‘zbekiston Respublikasi Prezidentining 2024-yil 30-sentabrdagi PF-151-son Farmoni, 2024-yil 30-sentabrdagi PQ-344-son Qarori, 2026-yil 9-iyundagi PF-108-son Farmoni, Vazirlar Mahkamasining 2025-yil 23-apreldagi 255-son Qarori ijrosini ta’minlash maqsadida hududlarda ${bogLabel} barpo etish uchun “${subjectName}” tomonidan taklif etilayotgan faoliyatning samaradorligi va iqtisodiy maqsadga muvofiqligini asoslash, amaldagi qonunchilik, normalar, ko‘rsatmalar va standartlarga muvofiq ishlab chiqilgan.`);
-
-  xml = replaceParagraphText(xml, /FAYZULLA BOBO MEVALI BOG‘LARI.*STIR/i, `“${subjectName}”, STIR: ${stir}.`);
-  xml = replaceParagraphText(xml, /FAYZULLAEV UMIDJON TOShPULAT/i, leaderName);
-  xml = replaceParagraphText(xml, /Navoiy viloyati,\s*Xatirchi tumani,\s*Qoracha QFY/i, address);
-  xml = replaceParagraphText(xml, /Bog‘dorchilik/i, spec);
-  xml = replaceParagraphText(xml, /maps\.app\.goo\.gl/i, locationUrl);
-  xml = replaceParagraphText(xml, /Yer maydoni 10 gektar\./i, `Yer maydoni ${gardenArea} gektar.`);
-  xml = replaceParagraphText(xml, /18\.03\.2020 y\., №Q-506-son/i, landDec);
-  xml = replaceParagraphText(xml, /27\.03\.2020 y\., №420-son/i, leaseCon);
-  xml = replaceParagraphText(xml, /10\.06\.2025 y\., R-XATT/i, regInfo);
-
-  xml = replaceParagraphText(xml, /TUPROQSHUNOSLIK VA AGROKIMYOVIY/i, `-${soilInfo}`);
-  xml = replaceParagraphText(xml, /Suv yetkazib berish xizmati/i, `-${waterInfo}`);
-  xml = replaceParagraphText(xml, /Gidrometeorologiya xizmati agentligining/i, `-${weatherInfo}`);
-  xml = replaceParagraphText(xml, /-\s*Mavjud emas\./i, `-${sciInfo}`);
-
-  // 3. Section II replacements
-  xml = replaceParagraphText(xml, /Bodom ko‘chati\./i, `${fruitType} ko‘chati.`);
-  xml = replaceParagraphText(xml, /“Avijor” navi\./i, `“${fruitVariety}” navi.`);
-  xml = replaceParagraphText(xml, /6x3 sxemada\./i, `${scheme} sxemada.`);
-  xml = replaceParagraphText(xml, /1 gektarga 555 tup/i, seedlingInfo);
-
-  // 4. Section IV & Signatures
-  xml = replaceParagraphText(xml, /yangi sanoatlashgan intensiv bog‘-tokzor/i, `yangi ${bogTokzorLabel}`);
-  xml = replaceParagraphText(xml, /sanoatlashgan intensiv bog‘-tokzor loyihasini/i, `${bogTokzorLabel} loyihasini`);
-
-  xml = replaceParagraphText(xml, /Navoiy viloyati bo‘limi boshlig‘i/i, `${regDist.region} viloyati bo‘limi boshlig‘i`);
-  xml = replaceParagraphText(xml, /Navoiy viloyati, Xatirchi tumani bosh mutaxassisi/i, `${regDist.region} viloyati, ${regDist.district} tumani bosh mutaxassisi`);
+  // Perform split-join tag replacements
+  xml = replaceTagInXml(xml, '{region_name}', regDist.region);
+  xml = replaceTagInXml(xml, '{district_name}', regDist.district);
+  xml = replaceTagInXml(xml, '{subject_name}', subjectName);
+  xml = replaceTagInXml(xml, '{garden_area}', gardenArea);
+  xml = replaceTagInXml(xml, '{bog_type_label}', bogLabel);
+  xml = replaceTagInXml(xml, '{bog_tokzor_label}', bogTokzorLabel);
+  xml = replaceTagInXml(xml, '{stir}', stir);
+  xml = replaceTagInXml(xml, '{leader_full_name}', leaderName);
+  xml = replaceTagInXml(xml, '{legal_address}', address);
+  xml = replaceTagInXml(xml, '{land_specialization}', spec);
+  xml = replaceTagInXml(xml, '{location_url}', locationUrl);
+  xml = replaceTagInXml(xml, '{land_decision}', landDec);
+  xml = replaceTagInXml(xml, '{lease_contract}', leaseCon);
+  xml = replaceTagInXml(xml, '{registry_info}', regInfo);
+  xml = replaceTagInXml(xml, '{soil_info}', soilInfo);
+  xml = replaceTagInXml(xml, '{water_supply_info}', waterInfo);
+  xml = replaceTagInXml(xml, '{weather_analysis}', weatherInfo);
+  xml = replaceTagInXml(xml, '{scientific_recommendation}', sciInfo);
+  xml = replaceTagInXml(xml, '{fruit_type}', fruitType);
+  xml = replaceTagInXml(xml, '{fruit_variety}', fruitVariety);
+  xml = replaceTagInXml(xml, '{planting_scheme}', scheme);
+  xml = replaceTagInXml(xml, '{seedling_info}', seedlingInfo);
 
   zip.file('word/document.xml', xml);
 
