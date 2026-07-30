@@ -3,6 +3,22 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function main() {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const shouldSeed = process.env.SEED_DEFAULT_USERS === 'true' || !isProduction;
+  if (!shouldSeed) {
+    console.log('Seed o‘tkazib yuborildi: productionda SEED_DEFAULT_USERS=true belgilanmagan.');
+    return;
+  }
+
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || (!isProduction ? 'Admin@123' : null);
+  const userPassword = process.env.SEED_USER_PASSWORD || (!isProduction ? 'User@123' : null);
+  if (!adminPassword || !userPassword) {
+    throw new Error('Production seed uchun SEED_ADMIN_PASSWORD va SEED_USER_PASSWORD majburiy');
+  }
+  if (isProduction && (adminPassword.length < 12 || userPassword.length < 12)) {
+    throw new Error('Production seed parollari kamida 12 ta belgidan iborat bo‘lishi kerak');
+  }
+
   console.log('Seed boshlandi...');
 
   const hash = (p) => bcrypt.hash(p, 12);
@@ -13,8 +29,8 @@ async function main() {
     update: { role: 'SUPERADMIN', status: 'ACTIVE' },
     create: {
       full_name: 'Super Administrator', username: 'superadmin',
-      password_hash: await hash('Admin@123'), role: 'SUPERADMIN',
-      status: 'ACTIVE', must_change_password: false
+      password_hash: await hash(adminPassword), role: 'SUPERADMIN',
+      status: 'ACTIVE', must_change_password: isProduction
     }
   });
 
@@ -23,8 +39,8 @@ async function main() {
     update: { role: 'TASDIQLOVCHI', status: 'ACTIVE' },
     create: {
       full_name: 'Toshkent Tasdiqlovchi', username: 'tasdiqlovchi1',
-      password_hash: await hash('Admin@123'), role: 'TASDIQLOVCHI',
-      region: 'Toshkent viloyati', status: 'ACTIVE', must_change_password: false
+      password_hash: await hash(adminPassword), role: 'TASDIQLOVCHI',
+      region: 'Toshkent viloyati', status: 'ACTIVE', must_change_password: isProduction
     }
   });
 
@@ -33,8 +49,8 @@ async function main() {
     update: { role: 'IMZOLOVCHI', status: 'ACTIVE' },
     create: {
       full_name: 'Direktor Imzolovchi', username: 'imzolovchi1',
-      password_hash: await hash('Admin@123'), role: 'IMZOLOVCHI',
-      status: 'ACTIVE', must_change_password: false
+      password_hash: await hash(adminPassword), role: 'IMZOLOVCHI',
+      status: 'ACTIVE', must_change_password: isProduction
     }
   });
 
@@ -43,8 +59,8 @@ async function main() {
     update: { role: 'TASDIQLOVCHI', status: 'ACTIVE' },
     create: {
       full_name: 'Admin Tasdiqlovchi', username: 'admin1',
-      password_hash: await hash('Admin@123'), role: 'TASDIQLOVCHI',
-      region: 'Toshkent viloyati', status: 'ACTIVE', must_change_password: false
+      password_hash: await hash(adminPassword), role: 'TASDIQLOVCHI',
+      region: 'Toshkent viloyati', status: 'ACTIVE', must_change_password: isProduction
     }
   });
 
@@ -53,8 +69,8 @@ async function main() {
     update: { status: 'ACTIVE' },
     create: {
       full_name: 'Alisher Karimov', username: 'user001',
-      password_hash: await hash('User@123'), role: 'USER',
-      status: 'ACTIVE', must_change_password: false
+      password_hash: await hash(userPassword), role: 'USER',
+      status: 'ACTIVE', must_change_password: isProduction
     }
   });
 

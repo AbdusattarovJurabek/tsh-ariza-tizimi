@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
 const XLSX = require('xlsx');
 const prisma = new PrismaClient();
+const ALLOWED_ROLES = ['USER', 'TASDIQLOVCHI', 'IMZOLOVCHI', 'SUPERADMIN'];
 
 // Barcha foydalanuvchilar (Admin uchun)
 exports.getAllUsers = async (req, res) => {
@@ -50,6 +51,9 @@ exports.createUser = async (req, res) => {
     if (!full_name || !username || !password) {
       return res.status(400).json({ error: 'Ism, login va parol majburiy' });
     }
+    if (!ALLOWED_ROLES.includes(role)) {
+      return res.status(400).json({ error: 'Noto‘g‘ri foydalanuvchi roli' });
+    }
 
     const existing = await prisma.user.findUnique({ where: { username } });
     if (existing) {
@@ -74,6 +78,9 @@ exports.updateUser = async (req, res) => {
   try {
     const { id } = req.params;
     const { full_name, role, region, district, phone, status } = req.body;
+    if (role && !ALLOWED_ROLES.includes(role)) {
+      return res.status(400).json({ error: 'Noto‘g‘ri foydalanuvchi roli' });
+    }
 
     const user = await prisma.user.update({
       where: { id: parseInt(id) },
@@ -193,7 +200,9 @@ exports.exportUsersExcel = async (req, res) => {
       '№': i + 1,
       'F.I.Sh.': u.full_name,
       'Login': u.username,
-      'Rol': u.role === 'ADMIN' ? 'Admin' : u.role === 'SUPER_ADMIN' ? 'Super Admin' : 'Foydalanuvchi',
+      'Rol': u.role === 'SUPERADMIN' ? 'Super Admin' :
+        u.role === 'TASDIQLOVCHI' ? 'Tasdiqlovchi' :
+        u.role === 'IMZOLOVCHI' ? 'Imzolovchi' : 'Foydalanuvchi',
       'Viloyat': u.region || '',
       'Tuman': u.district || '',
       'Telefon': u.phone || '',

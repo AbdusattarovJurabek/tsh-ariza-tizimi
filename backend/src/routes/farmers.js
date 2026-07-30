@@ -5,14 +5,15 @@ const { authenticate, authorize } = require('../middleware/auth');
 
 router.use(authenticate);
 
+// Admin marshruti dinamik /:id marshrutidan oldin turishi shart.
+router.get('/admin/all', authorize('SUPERADMIN'), ctrl.getAllFarmers);
+
 // Foydalanuvchi o'z fermerlarini boshqaradi
 router.get('/', ctrl.getMyFarmers);
+router.get('/lookup/:stir', ctrl.lookupOrganizationByStir);
 router.get('/:id', ctrl.getFarmer);
 router.post('/', ctrl.createFarmer);
 router.put('/:id', ctrl.updateFarmer);
 router.delete('/:id', ctrl.deleteFarmer);
-
-// Admin: barcha fermerlar
-router.get('/admin/all', authorize('ADMIN', 'SUPER_ADMIN'), ctrl.getAllFarmers);
 
 module.exports = router;

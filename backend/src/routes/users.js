@@ -26,14 +26,14 @@ const tempDir = path.join(__dirname, '../../uploads/temp');
 if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
 
 router.use(authenticate);
-router.use(authorize('ADMIN', 'SUPER_ADMIN'));
+router.use(authorize('SUPERADMIN'));
 
 router.get('/', ctrl.getAllUsers);
 router.post('/', ctrl.createUser);
+router.post('/import/excel', uploadExcel.single('file'), ctrl.importUsersFromExcel);
+router.get('/export/excel', ctrl.exportUsersExcel);
 router.put('/:id', ctrl.updateUser);
 router.delete('/:id', ctrl.deleteUser);
 router.post('/:id/reset-password', ctrl.resetPassword);
-router.post('/import/excel', uploadExcel.single('file'), ctrl.importUsersFromExcel);
-router.get('/export/excel', ctrl.exportUsersExcel);
 
 module.exports = router;

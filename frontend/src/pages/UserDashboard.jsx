@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { PlusCircle, FileText, CheckCircle, AlertCircle, Clock, XCircle, Eye } from 'lucide-react';
+import { PlusCircle, FileText, CheckCircle, AlertCircle, Clock, Eye, Trash2 } from 'lucide-react';
 import { applicationAPI } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
+import DeleteApplicationModal from '../components/DeleteApplicationModal';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
@@ -22,6 +23,8 @@ export default function UserDashboard() {
   const { user } = useAuth();
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState(null);
+  const [applicationToDelete, setApplicationToDelete] = useState(null);
 
   useEffect(() => {
     applicationAPI.getAll()
@@ -34,6 +37,20 @@ export default function UserDashboard() {
     acc[a.status] = (acc[a.status] || 0) + 1;
     return acc;
   }, {});
+
+  const handleDelete = async (application) => {
+    setDeletingId(application.id);
+    try {
+      await applicationAPI.delete(application.id);
+      setApplications(current => current.filter(item => item.id !== application.id));
+      toast.success("Ariza o'chirildi");
+      setApplicationToDelete(null);
+    } catch (error) {
+      toast.error(error.response?.data?.error || "Arizani o'chirishda xato");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
@@ -115,6 +132,18 @@ export default function UserDashboard() {
                             Tahrirlash
                           </Link>
                         )}
+                        {['DRAFT', 'HAS_ISSUES', 'REJECTED'].includes(app.status) && (
+                          <button
+                            type="button"
+                            onClick={() => setApplicationToDelete(app)}
+                            disabled={deletingId === app.id}
+                            className="text-red-500 hover:text-red-700 disabled:opacity-50 flex items-center gap-1 text-xs font-medium"
+                            title="Arizani o'chirish"
+                          >
+                            <Trash2 size={14} />
+                            {deletingId === app.id ? "O'chirilmoqda..." : "O'chirish"}
+                          </button>
+                        )}
                         {!['DRAFT'].includes(app.status) && (
                           <a href={`/track?code=${app.app_number}`} target="_blank" rel="noreferrer"
                             className="text-gray-400 hover:text-gray-600 text-xs font-medium" title="Ochiq tracking havolasi">
@@ -130,6 +159,14 @@ export default function UserDashboard() {
           </div>
         )}
       </div>
+
+      <DeleteApplicationModal
+        application={applicationToDelete}
+        open={Boolean(applicationToDelete)}
+        deleting={deletingId === applicationToDelete?.id}
+        onClose={() => setApplicationToDelete(null)}
+        onConfirm={() => handleDelete(applicationToDelete)}
+      />
     </div>
   );
 }

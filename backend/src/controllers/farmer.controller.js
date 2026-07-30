@@ -1,5 +1,50 @@
 const { PrismaClient } = require('@prisma/client');
+const { lookupOrganization, OrgInfoError } = require('../utils/orgInfoParser');
 const prisma = new PrismaClient();
+
+// INN bo'yicha OrgInfo ochiq sahifalaridan tashkilot ma'lumotlarini olish
+exports.lookupOrganizationByStir = async (req, res) => {
+  try {
+    const stir = String(req.params.stir || '').trim();
+    if (!/^\d{9}$/.test(stir)) {
+      return res.status(400).json({ error: "INN aynan 9 ta raqamdan iborat bo'lishi kerak" });
+    }
+
+    const catalogFarmer = await prisma.farmer.findFirst({
+      where: {
+        stir,
+        full_name: { not: '' },
+        leader_full_name: { not: null },
+        legal_address: { not: null },
+      },
+      select: {
+        full_name: true,
+        leader_full_name: true,
+        legal_address: true,
+        stir: true,
+        region: true,
+        district: true,
+        land_area: true,
+      },
+    });
+
+    if (catalogFarmer) {
+      return res.json({
+        ...catalogFarmer,
+        source: 'database',
+      });
+    }
+
+    const organization = await lookupOrganization(stir);
+    res.json(organization);
+  } catch (err) {
+    if (err instanceof OrgInfoError) {
+      return res.status(err.status).json({ error: err.message });
+    }
+    console.error(err);
+    res.status(502).json({ error: "Tashkilot ma'lumotlarini olishda xato" });
+  }
+};
 
 // Foydalanuvchining fermerlarini ko'rish
 exports.getMyFarmers = async (req, res) => {

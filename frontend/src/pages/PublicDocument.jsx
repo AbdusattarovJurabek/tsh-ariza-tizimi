@@ -35,6 +35,20 @@ export default function PublicDocument() {
 
   const isSigned = data.status === 'SIGNED';
 
+  if (!isSigned) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+        <div className="bg-white rounded-xl shadow p-8 text-center max-w-md">
+          <div className="text-4xl mb-4">⏳</div>
+          <h1 className="font-semibold text-gray-800">Hujjat hali ommaga ochilmagan</h1>
+          <p className="text-gray-500 text-sm mt-2">
+            Ariza holati: {data.status_label || data.status}. To‘liq hujjat faqat imzolangandan keyin ko‘rsatiladi.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // API dan kelgan data ni DocumentPreview formatiga mapping
   const wordData = {
     subject_name: data.subject_name,

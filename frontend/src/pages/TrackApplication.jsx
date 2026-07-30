@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { Search, CheckCircle, Clock, AlertCircle, XCircle, FileText, Loader } from 'lucide-react';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 const STATUS_CONFIG = {
   DRAFT:        { label: 'Qoralama',           color: 'gray',   icon: FileText },
@@ -216,10 +216,10 @@ export default function TrackApplication() {
                   { s: 'UNDER_REVIEW', label: "Ko'rib chiqilmoqda" },
                   { s: 'APPROVED',     label: 'Tasdiqlandi' },
                 ].map(({ s, label }, i) => {
-                  const statuses = ['SUBMITTED', 'UNDER_REVIEW', 'HAS_ISSUES', 'APPROVED', 'REJECTED'];
+                  const statuses = ['SUBMITTED', 'UNDER_REVIEW', 'HAS_ISSUES', 'APPROVED', 'SENT_TO_SIGNER', 'SIGNED', 'REJECTED'];
                   const currentIdx = statuses.indexOf(result.status);
                   const thisIdx = statuses.indexOf(s);
-                  const done = result.status === 'APPROVED' ? true : currentIdx > thisIdx;
+                  const done = ['APPROVED', 'SENT_TO_SIGNER', 'SIGNED'].includes(result.status) ? true : currentIdx > thisIdx;
                   const active = result.status === s || (s === 'UNDER_REVIEW' && result.status === 'HAS_ISSUES');
                   return (
                     <div key={s} className={`flex items-center gap-3 px-3 py-2 rounded-lg ${active ? 'bg-yellow-50' : done ? 'bg-green-50' : 'bg-gray-50'}`}>

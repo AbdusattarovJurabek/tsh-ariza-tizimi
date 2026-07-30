@@ -31,7 +31,13 @@ export default function ChangePassword() {
       });
       updateUser({ must_change_password: false });
       toast.success('Parol muvaffaqiyatli o\'zgartirildi!');
-      navigate(user?.role === 'USER' ? '/' : '/admin');
+      const destinations = {
+        USER: '/',
+        TASDIQLOVCHI: '/tasdiqlovchi',
+        IMZOLOVCHI: '/imzolovchi',
+        SUPERADMIN: '/admin',
+      };
+      navigate(destinations[user?.role] || '/');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Parol o\'zgartirishda xato');
     } finally {

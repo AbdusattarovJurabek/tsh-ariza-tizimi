@@ -5,7 +5,7 @@ const appCtrl = require('../controllers/application.controller');
 const { authenticate, authorize } = require('../middleware/auth');
 
 router.use(authenticate);
-router.use(authorize('ADMIN', 'SUPER_ADMIN'));
+router.use(authorize('SUPERADMIN'));
 
 router.get('/applications', ctrl.getAllApplications);
 router.get('/applications/:id', appCtrl.getApplication);

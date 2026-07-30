@@ -1,6 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const { generateApplicationWord } = require('../utils/wordExport');
 const { getWorkingDaysRemaining } = require('../utils/workingDays');
+const { canTransition } = require('../utils/applicationRules');
 const prisma = new PrismaClient();
 
 const APPLICATION_INCLUDE = {
@@ -59,7 +60,9 @@ exports.getApplication = async (req, res) => {
       where: { id: parseInt(id) },
       include: { ...APPLICATION_INCLUDE, status_history: { orderBy: { created_at: 'desc' }, take: 10, include: { changed_by: { select: { full_name: true, role: true } } } } }
     });
-    if (!application) return res.status(404).json({ error: 'Ariza topilmadi' });
+    if (!application || application.status === 'DRAFT') {
+      return res.status(404).json({ error: 'Ariza topilmadi' });
+    }
 
     // word_content JSON parse
     if (application.word_content) {
@@ -78,16 +81,23 @@ exports.updateStatus = async (req, res) => {
     const { id } = req.params;
     const { status, comment } = req.body;
 
-    const validStatuses = ['UNDER_REVIEW', 'HAS_ISSUES', 'APPROVED', 'REJECTED', 'SENT_TO_SIGNER'];
-    if (!validStatuses.includes(status)) return res.status(400).json({ error: "Noto'g'ri status" });
-
     const application = await prisma.application.findUnique({ where: { id: parseInt(id) } });
     if (!application) return res.status(404).json({ error: 'Ariza topilmadi' });
+    if (!['UNDER_REVIEW', 'APPROVED'].includes(application.status)) {
+      return res.status(400).json({ error: 'Bu holatda hujjat mazmunini tahrirlash mumkin emas' });
+    }
+    if (!canTransition(application.status, status)) {
+      return res.status(400).json({
+        error: `${application.status} holatidan ${status || 'noma’lum'} holatiga o'tish mumkin emas`
+      });
+    }
+    if (status === 'HAS_ISSUES' && !String(comment || '').trim()) {
+      return res.status(400).json({ error: 'Kamchiliklar haqida izoh majburiy' });
+    }
 
     const updateData = { status, admin_comment: comment || null };
 
     if (status === 'APPROVED' && !application.approved_at) updateData.approved_at = new Date();
-    if (status !== 'APPROVED' && application.status === 'APPROVED') updateData.approved_at = null;
     if (status === 'SENT_TO_SIGNER') updateData.sent_to_signer_at = new Date();
 
     const [updated] = await prisma.$transaction([
@@ -110,6 +120,9 @@ exports.updateWordContent = async (req, res) => {
     const { id } = req.params;
     const application = await prisma.application.findUnique({ where: { id: parseInt(id) } });
     if (!application) return res.status(404).json({ error: 'Ariza topilmadi' });
+    if (!['UNDER_REVIEW', 'APPROVED'].includes(application.status)) {
+      return res.status(400).json({ error: 'Bu holatda hujjat mazmunini tahrirlash mumkin emas' });
+    }
     await prisma.application.update({
       where: { id: parseInt(id) },
       data: { word_content: JSON.stringify(req.body) }
@@ -148,7 +161,9 @@ exports.exportWord = async (req, res) => {
       where: { id: parseInt(id) },
       include: { user: { select: { full_name: true, region: true, district: true, phone: true } } }
     });
-    if (!application) return res.status(404).json({ error: 'Ariza topilmadi' });
+    if (!application || application.status === 'DRAFT') {
+      return res.status(404).json({ error: 'Ariza topilmadi' });
+    }
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', `attachment; filename="TSH-${application.app_number}.docx"`);

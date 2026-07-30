@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
 import toast from 'react-hot-toast';
@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { applicationAPI, farmerAPI } from '../services/api';
 import { FRUIT_TYPES, UZBEKISTAN_REGIONS, FILE_TYPE_LABELS } from '../utils/constants';
+import { UZBEKISTAN_BANKS } from '../utils/banks';
 
 const STEPS = [
   { id: 1, label: "Subyekt ma'lumotlari", icon: User },
@@ -19,13 +20,31 @@ const STEPS = [
 ];
 
 const FILE_TYPES = Object.entries(FILE_TYPE_LABELS);
+const LOOKUP_TIMEOUT_SECONDS = 10;
+const SORTED_UZBEKISTAN_BANKS = [...UZBEKISTAN_BANKS]
+  .sort((a, b) => a.localeCompare(b, 'uz'));
+const formatGroupedInteger = (value = '') =>
+  String(value).replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+const formatBankAccount = (value = '') =>
+  value.replace(/\D/g, '').slice(0, 20).match(/.{1,3}/g)?.join(' ') || '';
+
+const AUTOFILL_OFF_PROPS = {
+  autoComplete: 'off',
+  'data-form-type': 'other',
+  'data-lpignore': 'true',
+  'data-1p-ignore': 'true',
+};
 
 const InputField = ({ label, required, error, ...props }) => (
   <div>
     <label className="block text-sm font-medium text-gray-700 mb-1">
       {label} {required && <span className="text-red-500">*</span>}
     </label>
-    <input className={`input-field ${error ? 'border-red-400' : ''}`} {...props} />
+    <input
+      className={`input-field ${error ? 'border-red-400' : ''}`}
+      {...AUTOFILL_OFF_PROPS}
+      {...props}
+    />
     {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
   </div>
 );
@@ -35,7 +54,12 @@ const TextareaField = ({ label, required, ...props }) => (
     <label className="block text-sm font-medium text-gray-700 mb-1">
       {label} {required && <span className="text-red-500">*</span>}
     </label>
-    <textarea rows={3} className="input-field resize-none" {...props} />
+    <textarea
+      rows={3}
+      className="input-field resize-none"
+      {...AUTOFILL_OFF_PROPS}
+      {...props}
+    />
   </div>
 );
 
@@ -54,6 +78,11 @@ export default function ApplicationForm() {
   const [farmers, setFarmers] = useState([]);
   const [selectedFarmerId, setSelectedFarmerId] = useState('');
   const [foundFarmer, setFoundFarmer] = useState(null);
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState('');
+  const [lookupSecondsLeft, setLookupSecondsLeft] = useState(0);
+  const lookupRequestRef = useRef(0);
+  const lookupTimerRef = useRef(null);
 
   // Tasdiqlash modali
   const [showConfirm, setShowConfirm] = useState(false);
@@ -77,6 +106,10 @@ export default function ApplicationForm() {
     farmerAPI.getAll().then(res => setFarmers(res.data)).catch(() => {});
   }, []);
 
+  useEffect(() => () => {
+    if (lookupTimerRef.current) clearInterval(lookupTimerRef.current);
+  }, []);
+
   useEffect(() => {
     if (id) {
       applicationAPI.getOne(id).then(res => {
@@ -95,8 +128,9 @@ export default function ApplicationForm() {
 
   // Fermer topilganda avtomatik to'ldirish va qulflash
   const applyFarmer = (farmer) => {
-    setSelectedFarmerId(String(farmer.id));
+    setSelectedFarmerId(farmer.id ? String(farmer.id) : '');
     setFoundFarmer(farmer);
+    setLookupError('');
     setForm(prev => ({
       ...prev,
       // Fermerdan olinadigan maydonlar (keyinchalik readonly bo'ladi)
@@ -108,51 +142,124 @@ export default function ApplicationForm() {
     }));
   };
 
+  const clearOrganizationFields = (stir) => {
+    setFoundFarmer(null);
+    setSelectedFarmerId('');
+    setForm(prev => ({
+      ...prev,
+      stir,
+      subject_name: '',
+      leader_full_name: '',
+      legal_address: '',
+      total_land_area: '',
+    }));
+  };
+
+  const stopLookupCountdown = () => {
+    if (lookupTimerRef.current) {
+      clearInterval(lookupTimerRef.current);
+      lookupTimerRef.current = null;
+    }
+  };
+
+  const startLookupCountdown = () => {
+    stopLookupCountdown();
+    const startedAt = Date.now();
+    setLookupSecondsLeft(LOOKUP_TIMEOUT_SECONDS);
+    lookupTimerRef.current = setInterval(() => {
+      const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000);
+      const secondsLeft = Math.max(0, LOOKUP_TIMEOUT_SECONDS - elapsedSeconds);
+      setLookupSecondsLeft(secondsLeft);
+      if (secondsLeft === 0) stopLookupCountdown();
+    }, 250);
+  };
+
+  const lookupOrganization = async (stir) => {
+    const requestId = ++lookupRequestRef.current;
+    setLookupLoading(true);
+    setLookupError('');
+    startLookupCountdown();
+    clearOrganizationFields(stir);
+
+    try {
+      const response = await farmerAPI.lookupOrganization(stir);
+      if (requestId !== lookupRequestRef.current) return;
+      applyFarmer(response.data);
+    } catch (err) {
+      if (requestId !== lookupRequestRef.current) return;
+      setLookupError(err.response?.data?.error || "Tashkilot ma'lumotlarini olishda xato");
+    } finally {
+      if (requestId === lookupRequestRef.current) {
+        stopLookupCountdown();
+        setLookupLoading(false);
+        setLookupSecondsLeft(0);
+      }
+    }
+  };
+
   const set = (field) => (e) => {
     const value = e.target.value;
     setForm(prev => ({ ...prev, [field]: value }));
     if (errors[field]) setErrors(prev => ({ ...prev, [field]: '' }));
 
-    // INN kiritilganda fermer bazasidan qidirish va avtomatik to'ldirish
+    // INN kiritilganda avval fermer bazasidan, keyin OrgInfo sahifasidan qidirish
     if (field === 'stir') {
       const trimmed = value.replace(/\D/g, '').slice(0, 9);
       setForm(prev => ({ ...prev, stir: trimmed }));
       if (trimmed.length === 9) {
         const match = farmers.find(f => f.stir && f.stir.trim() === trimmed);
         if (match) {
+          lookupRequestRef.current += 1;
+          stopLookupCountdown();
+          setLookupLoading(false);
+          setLookupSecondsLeft(0);
           applyFarmer(match);
         } else {
-          setFoundFarmer(null);
-          setSelectedFarmerId('');
-          // Agar avval to'ldirilgan bo'lsa, tozalash
-          setForm(prev => ({
-            ...prev,
-            stir: trimmed,
-            subject_name: '',
-            leader_full_name: '',
-            legal_address: '',
-            total_land_area: '',
-          }));
+          lookupOrganization(trimmed);
         }
       } else {
-        setFoundFarmer(null);
-        setSelectedFarmerId('');
+        lookupRequestRef.current += 1;
+        stopLookupCountdown();
+        setLookupLoading(false);
+        setLookupSecondsLeft(0);
+        setLookupError('');
+        clearOrganizationFields(trimmed);
       }
       return; // set ichida ikkinchi setForm chaqirilmasin
     }
   };
 
-  // Fermerdan olingan maydonlarmi? (readonly bo'lishi kerak)
-  const isFarmerField = foundFarmer && selectedFarmerId
-    ? ['subject_name', 'leader_full_name', 'legal_address']
-    : [];
+  const setBankAccount = (e) => {
+    const value = e.target.value.replace(/\D/g, '').slice(0, 20);
+    setForm(prev => ({ ...prev, bank_account: value }));
+    if (errors.bank_account) {
+      setErrors(prev => ({ ...prev, bank_account: '' }));
+    }
+  };
+
+  const setNonNegativeDecimal = (field) => (e) => {
+    const value = e.target.value;
+    if (value !== '' && !/^\d*(\.\d{0,2})?$/.test(value)) return;
+    setForm(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  const setNonNegativeInteger = (field) => (e) => {
+    const value = e.target.value.replace(/\D/g, '');
+    setForm(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
 
   const validateStep1 = () => {
     const e = {};
     if (!form.stir || form.stir.length !== 9) {
       e.stir = "INN aynan 9 ta raqam bo'lishi kerak";
     } else if (!foundFarmer) {
-      e.stir = "Bu INN bo'yicha fermer topilmadi. Avval fermer qo'shing";
+      e.stir = lookupError || "Bu INN bo'yicha tashkilot topilmadi";
     }
     if (!form.subject_name)     e.subject_name     = 'Majburiy maydon';
     if (!form.leader_full_name) e.leader_full_name = 'Majburiy maydon';
@@ -162,7 +269,12 @@ export default function ApplicationForm() {
 
   const validateStep2 = () => {
     const e = {};
-    if (!form.garden_area) e.garden_area = 'Majburiy maydon';
+    if (form.total_land_area !== '' && Number(form.total_land_area) < 0) {
+      e.total_land_area = "Manfiy bo'lishi mumkin emas";
+    }
+    if (!form.garden_area || Number(form.garden_area) <= 0) {
+      e.garden_area = "0 dan katta bo'lishi kerak";
+    }
     if (!form.garden_address) e.garden_address = 'Majburiy maydon';
     return e;
   };
@@ -181,11 +293,13 @@ export default function ApplicationForm() {
       if (appId) {
         await applicationAPI.update(appId, payload);
         if (showToast) toast.success('Saqlandi');
+        return appId;
       } else {
         const res = await applicationAPI.create(payload);
         setAppId(res.data.id);
         navigate(`/applications/${res.data.id}/edit`, { replace: true });
         if (showToast) toast.success('Ariza yaratildi');
+        return res.data.id;
       }
     } catch (err) {
       toast.error(err.response?.data?.error || 'Saqlashda xato');
@@ -219,6 +333,18 @@ export default function ApplicationForm() {
   // Yuborish — avval tasdiqlash modali
   const handleSubmitClick = () => {
     if (!appId) { toast.error('Avval arizani saqlang'); return; }
+    const allErrors = { ...validateStep1(), ...validateStep2(), ...validateStep4() };
+    if (Object.keys(allErrors).length > 0) {
+      setErrors(allErrors);
+      toast.error("Majburiy maydonlarni to'ldiring");
+      return;
+    }
+    const missingFiles = FILE_TYPES.filter(([type]) => !files.some(file => file.file_type === type));
+    if (missingFiles.length > 0) {
+      setStep(5);
+      toast.error(`${missingFiles.length} ta majburiy hujjat yuklanmagan`);
+      return;
+    }
     setShowConfirm(true);
   };
 
@@ -240,14 +366,15 @@ export default function ApplicationForm() {
     const existing = files.find(f => f.file_type === fileType);
 
     const onDrop = useCallback(async (acceptedFiles) => {
-      if (!appId) { await saveData(false); }
       if (!acceptedFiles[0]) return;
+      const targetAppId = appId || await saveData(false);
+      if (!targetAppId) return;
       setUploadingFile(fileType);
       const formData = new FormData();
       formData.append('file', acceptedFiles[0]);
       formData.append('file_type', fileType);
       try {
-        const res = await applicationAPI.uploadFile(appId, formData);
+        const res = await applicationAPI.uploadFile(targetAppId, formData);
         setFiles(prev => [...prev.filter(f => f.file_type !== fileType), res.data]);
         toast.success('Fayl yuklandi');
       } catch (err) {
@@ -329,10 +456,11 @@ export default function ApplicationForm() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 INN (STIR) <span className="text-red-500">*</span>
-                <span className="text-xs text-primary-600 font-normal ml-2">— bazadan avtomatik to'ldiriladi</span>
+                <span className="text-xs text-primary-600 font-normal ml-2">— baza va OrgInfo’dan avtomatik to'ldiriladi</span>
               </label>
               <div className="flex gap-2">
                 <input
+                  {...AUTOFILL_OFF_PROPS}
                   className={`input-field font-mono flex-1 ${errors.stir ? 'border-red-400' : foundFarmer ? 'border-green-400 bg-green-50' : ''}`}
                   value={form.stir}
                   onChange={set('stir')}
@@ -346,6 +474,13 @@ export default function ApplicationForm() {
                     {form.stir.length}/9
                   </span>
                 )}
+                {lookupLoading && (
+                  <span className="flex items-center gap-2 text-xs text-primary-600 whitespace-nowrap">
+                    <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-600"></span>
+                    Qidirilmoqda...
+                    <span className="font-mono font-semibold">{lookupSecondsLeft} soniya</span>
+                  </span>
+                )}
               </div>
               {/* INN progress bar */}
               {form.stir.length > 0 && (
@@ -353,7 +488,9 @@ export default function ApplicationForm() {
                   {Array.from({ length: 9 }).map((_, i) => (
                     <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${
                       i < form.stir.length
-                        ? (form.stir.length === 9 ? (foundFarmer ? 'bg-green-500' : 'bg-red-400') : 'bg-yellow-400')
+                        ? (form.stir.length === 9
+                          ? (foundFarmer ? 'bg-green-500' : lookupLoading ? 'bg-primary-400' : 'bg-red-400')
+                          : 'bg-yellow-400')
                         : 'bg-gray-200'
                     }`} />
                   ))}
@@ -367,7 +504,9 @@ export default function ApplicationForm() {
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-green-600 text-sm">✅</span>
                     <p className="text-sm font-bold text-green-800">{foundFarmer.full_name}</p>
-                    <span className="ml-auto text-xs bg-green-200 text-green-800 px-2 py-0.5 rounded-full">Topildi</span>
+                    <span className="ml-auto text-xs bg-green-200 text-green-800 px-2 py-0.5 rounded-full">
+                      {foundFarmer.source === 'orginfo' ? 'OrgInfo’dan topildi' : 'Bazadan topildi'}
+                    </span>
                   </div>
                   <div className="text-xs text-green-700 space-y-0.5 pl-5">
                     {foundFarmer.leader_full_name && <p>👤 {foundFarmer.leader_full_name}</p>}
@@ -383,19 +522,15 @@ export default function ApplicationForm() {
               )}
 
               {/* Topilmadi → fermer qo'shish havola */}
-              {form.stir.length === 9 && !foundFarmer && (
+              {form.stir.length === 9 && !foundFarmer && !lookupLoading && (
                 <div className="mt-2 bg-orange-50 border border-orange-300 rounded-xl p-3 flex items-start gap-2">
                   <span className="text-orange-500 text-sm flex-shrink-0">⚠️</span>
                   <div>
                     <p className="text-sm text-orange-800 font-medium">
-                      Bu INN bo'yicha fermer topilmadi
+                      {lookupError || "Bu INN bo'yicha tashkilot topilmadi"}
                     </p>
                     <p className="text-xs text-orange-600 mt-0.5">
-                      Avval{' '}
-                      <a href="/farmers" target="_blank" className="underline font-semibold hover:text-orange-800">
-                        Fermerlar sahifasida →
-                      </a>{' '}
-                      fermerni qo'shing, so'ng qaytib keling.
+                      INNni tekshiring yoki tashkilotni Fermerlar bazasiga qo'shing.
                     </p>
                   </div>
                 </div>
@@ -403,8 +538,7 @@ export default function ApplicationForm() {
 
               {form.stir.length === 0 && farmers.length === 0 && (
                 <p className="text-xs text-gray-400 mt-1">
-                  Fermerlar bazasi bo'sh.{' '}
-                  <a href="/farmers" target="_blank" className="text-primary-600 underline">Fermer qo'shish →</a>
+                  Fermerlar bazasi bo'sh. INN kiritilganda OrgInfo orqali qidiriladi.
                 </p>
               )}
             </div>
@@ -416,7 +550,7 @@ export default function ApplicationForm() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                     d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
-                Quyidagi ma'lumotlar fermer bazasidan olingan va o'zgartirib bo'lmaydi
+                Quyidagi ma'lumotlar baza yoki OrgInfo’dan olingan va o'zgartirib bo'lmaydi
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -425,6 +559,7 @@ export default function ApplicationForm() {
                     Subyekt nomi <span className="text-red-500">*</span>
                   </label>
                   <input
+                    {...AUTOFILL_OFF_PROPS}
                     readOnly
                     className="input-field bg-gray-50 text-gray-700 cursor-not-allowed"
                     value={form.subject_name}
@@ -437,6 +572,7 @@ export default function ApplicationForm() {
                     Rahbar (Direktor) F.I.Sh. <span className="text-red-500">*</span>
                   </label>
                   <input
+                    {...AUTOFILL_OFF_PROPS}
                     readOnly
                     className="input-field bg-gray-50 text-gray-700 cursor-not-allowed"
                     value={form.leader_full_name}
@@ -451,6 +587,7 @@ export default function ApplicationForm() {
                   Yuridik manzil <span className="text-red-500">*</span>
                 </label>
                 <textarea
+                  {...AUTOFILL_OFF_PROPS}
                   readOnly
                   rows={2}
                   className="input-field resize-none bg-gray-50 text-gray-700 cursor-not-allowed"
@@ -466,8 +603,26 @@ export default function ApplicationForm() {
               <h4 className="font-medium text-gray-700 mb-3 text-sm">Bank rekvizitlari</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <InputField label="MFO" value={form.mfo} onChange={set('mfo')} placeholder="5 ta raqam" maxLength={5} />
-                <InputField label="Hisob raqam" value={form.bank_account} onChange={set('bank_account')} placeholder="20 ta raqam" />
-                <InputField label="Bank nomi" value={form.bank_name} onChange={set('bank_name')} placeholder="Bank nomi" />
+                <InputField
+                  label="Hisob raqam"
+                  value={formatBankAccount(form.bank_account)}
+                  onChange={setBankAccount}
+                  placeholder="000 000 000 000 000 000 00"
+                  inputMode="numeric"
+                  maxLength={26}
+                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Bank nomi</label>
+                  <select className="input-field" value={form.bank_name} onChange={set('bank_name')}>
+                    <option value="">Bankni tanlang...</option>
+                    {form.bank_name && !UZBEKISTAN_BANKS.includes(form.bank_name) && (
+                      <option value={form.bank_name}>{form.bank_name}</option>
+                    )}
+                    {SORTED_UZBEKISTAN_BANKS.map(bank => (
+                      <option key={bank} value={bank}>{bank}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
           </div>
@@ -478,9 +633,28 @@ export default function ApplicationForm() {
           <div className="space-y-4">
             <h3 className="text-base font-semibold text-gray-800 pb-2 border-b">Yer maydoni ma'lumotlari</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <InputField label="Umumiy yer maydoni (ga)" value={form.total_land_area} onChange={set('total_land_area')} type="number" step="0.01" placeholder="0.00" />
+              <InputField
+                label="Umumiy yer maydoni (ga)"
+                value={form.total_land_area}
+                onChange={setNonNegativeDecimal('total_land_area')}
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                error={errors.total_land_area}
+              />
               <InputField label="Ixtisoslik" value={form.land_specialization} onChange={set('land_specialization')} placeholder="Yer uchastkasi ixtisosligi" />
-              <InputField label="Bog' maydoni (ga)" required value={form.garden_area} onChange={set('garden_area')} type="number" step="0.01" placeholder="0.00" error={errors.garden_area} />
+              <InputField
+                label="Bog' maydoni (ga)"
+                required
+                value={form.garden_area}
+                onChange={setNonNegativeDecimal('garden_area')}
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                error={errors.garden_area}
+              />
               <InputField label="Yer maydoni konturi" value={form.land_contour} onChange={set('land_contour')} placeholder="Kontur raqami" />
             </div>
             <TextareaField label="Bog' tashkil qilinadigan manzil" required value={form.garden_address} onChange={set('garden_address')} placeholder="To'liq manzil" />
@@ -556,15 +730,43 @@ export default function ApplicationForm() {
               </div>
               <InputField label="Meva navi" value={form.fruit_variety} onChange={set('fruit_variety')} placeholder="Navlar ro'yxati" />
               <InputField label="Ekish sxemasi" value={form.planting_scheme} onChange={set('planting_scheme')} placeholder="masalan: 4x2m" />
-              <InputField label="Ko'chat soni (dona)" required value={form.seedling_count} onChange={set('seedling_count')} type="number" placeholder="0" error={errors.seedling_count} />
+              <InputField
+                label="Ko'chat soni (dona)"
+                required
+                value={formatGroupedInteger(form.seedling_count)}
+                onChange={setNonNegativeInteger('seedling_count')}
+                inputMode="numeric"
+                placeholder="0"
+                error={errors.seedling_count}
+              />
               <InputField label="Taxminiy ekilish davri" value={form.planting_period} onChange={set('planting_period')} placeholder="masalan: 2026-yil bahor" />
               <InputField label="Suv manbasi" value={form.water_source} onChange={set('water_source')} placeholder="Kanal, quduq, daryo..." />
-              <InputField label="Loyiha summasi (so'm)" value={form.project_amount} onChange={set('project_amount')} type="number" placeholder="0" />
+              <InputField
+                label="Loyiha summasi (so'm)"
+                value={form.project_amount}
+                onChange={setNonNegativeDecimal('project_amount')}
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0"
+              />
             </div>
             <h4 className="font-medium text-gray-700 pt-2">Ish o'rinlari</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <InputField label="Doimiy ish o'rni" value={form.permanent_jobs} onChange={set('permanent_jobs')} type="number" placeholder="0" />
-              <InputField label="Mavsumiy ish o'rni" value={form.seasonal_jobs} onChange={set('seasonal_jobs')} type="number" placeholder="0" />
+              <InputField
+                label="Doimiy ish o'rni"
+                value={formatGroupedInteger(form.permanent_jobs)}
+                onChange={setNonNegativeInteger('permanent_jobs')}
+                inputMode="numeric"
+                placeholder="0"
+              />
+              <InputField
+                label="Mavsumiy ish o'rni"
+                value={formatGroupedInteger(form.seasonal_jobs)}
+                onChange={setNonNegativeInteger('seasonal_jobs')}
+                inputMode="numeric"
+                placeholder="0"
+              />
             </div>
             <TextareaField label="Ta'minotchi korxonalar" value={form.supplier_companies} onChange={set('supplier_companies')} placeholder="Ko'chat, sug'orish uskunalari ta'minotchilari" />
           </div>

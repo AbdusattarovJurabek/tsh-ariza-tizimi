@@ -1,4 +1,8 @@
 require('dotenv').config();
+if (process.env.NODE_ENV === 'production' &&
+    (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32)) {
+  throw new Error('Production uchun kamida 32 belgili JWT_SECRET majburiy');
+}
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -27,10 +31,9 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Uploads papkasi
+// Uploads papkasi. Fayllar faqat autentifikatsiyalangan API orqali beriladi.
 const uploadsDir = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-app.use('/uploads', express.static(uploadsDir));
 
 // Routes
 app.use('/api/auth', authRoutes);

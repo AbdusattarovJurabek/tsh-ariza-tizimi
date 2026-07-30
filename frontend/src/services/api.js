@@ -31,6 +31,20 @@ export const downloadBlob = (data, filename) => {
   window.URL.revokeObjectURL(url);
 };
 
+export const openProtectedFile = async (applicationId, file) => {
+  const response = await api.get(
+    `/applications/${applicationId}/files/${file.id}/download`,
+    { responseType: 'blob' }
+  );
+  const url = window.URL.createObjectURL(response.data);
+  const a = document.createElement('a');
+  a.href = url;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  a.click();
+  window.setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+};
+
 export const authAPI = {
   login: (data) => api.post('/auth/login', data),
   getMe: () => api.get('/auth/me'),
@@ -42,6 +56,7 @@ export const applicationAPI = {
   getOne: (id) => api.get(`/applications/${id}`),
   create: (data) => api.post('/applications', data),
   update: (id, data) => api.put(`/applications/${id}`, data),
+  delete: (id) => api.delete(`/applications/${id}`),
   submit: (id) => api.post(`/applications/${id}/submit`),
   uploadFile: (id, formData) => api.post(`/applications/${id}/files`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
@@ -68,6 +83,7 @@ export const userAPI = {
 
 export const farmerAPI = {
   getAll: () => api.get('/farmers'),
+  lookupOrganization: (stir) => api.get(`/farmers/lookup/${stir}`),
   getOne: (id) => api.get(`/farmers/${id}`),
   create: (data) => api.post('/farmers', data),
   update: (id, data) => api.put(`/farmers/${id}`, data),

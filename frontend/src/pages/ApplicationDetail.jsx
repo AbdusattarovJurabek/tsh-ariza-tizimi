@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { applicationAPI, downloadBlob } from '../services/api';
+import { applicationAPI, downloadBlob, openProtectedFile } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
-import { ArrowLeft, Edit2, Send, Download, MapPin, MessageSquare, Clock, FileText, Share2, CheckCircle } from 'lucide-react';
+import DeleteApplicationModal from '../components/DeleteApplicationModal';
+import { ArrowLeft, Edit2, MapPin, MessageSquare, Clock, FileText, Share2, Trash2 } from 'lucide-react';
 import { FILE_TYPE_LABELS, STATUS_LABELS } from '../utils/constants';
 import toast from 'react-hot-toast';
 
@@ -117,6 +118,8 @@ export default function ApplicationDetail() {
   const [app, setApp] = useState(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const handleDownloadWord = async () => {
     setDownloading(true);
@@ -131,6 +134,18 @@ export default function ApplicationDetail() {
     }
   };
 
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await applicationAPI.delete(app.id);
+      toast.success("Ariza o'chirildi");
+      navigate('/');
+    } catch (error) {
+      toast.error(error.response?.data?.error || "Arizani o'chirishda xato");
+      setDeleting(false);
+    }
+  };
+
   useEffect(() => {
     applicationAPI.getOne(id)
       .then(res => setApp(res.data))
@@ -142,6 +157,7 @@ export default function ApplicationDetail() {
   if (!app) return null;
 
   const canEdit = ['DRAFT', 'HAS_ISSUES'].includes(app.status);
+  const canDelete = ['DRAFT', 'HAS_ISSUES', 'REJECTED'].includes(app.status);
 
   return (
     <div className="max-w-5xl mx-auto space-y-5">
@@ -160,7 +176,7 @@ export default function ApplicationDetail() {
           </div>
         </div>
         <div className="flex gap-2 flex-shrink-0">
-          {app.status === 'APPROVED' && (
+          {['APPROVED', 'SENT_TO_SIGNER', 'SIGNED'].includes(app.status) && (
             <button
               onClick={handleDownloadWord}
               disabled={downloading}
@@ -174,6 +190,17 @@ export default function ApplicationDetail() {
             <Link to={`/applications/${app.id}/edit`} className="btn-secondary flex items-center gap-2 text-sm">
               <Edit2 size={15} /> Tahrirlash
             </Link>
+          )}
+          {canDelete && (
+            <button
+              type="button"
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={deleting}
+              className="btn-secondary border-red-200 text-red-600 hover:bg-red-50 flex items-center gap-2 text-sm"
+            >
+              <Trash2 size={15} />
+              {deleting ? "O'chirilmoqda..." : "O'chirish"}
+            </button>
           )}
         </div>
       </div>
@@ -273,10 +300,11 @@ export default function ApplicationDetail() {
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-medium text-gray-700 truncate">{label}</p>
                   {file && (
-                    <a href={`/${file.file_path}`} target="_blank" rel="noreferrer"
-                      className="text-xs text-primary-600 hover:underline truncate block">
+                    <button type="button"
+                      onClick={() => openProtectedFile(app.id, file).catch(() => toast.error('Faylni ochishda xato'))}
+                      className="text-xs text-primary-600 hover:underline truncate block text-left">
                       {file.file_name}
-                    </a>
+                    </button>
                   )}
                 </div>
               </div>
@@ -311,6 +339,14 @@ export default function ApplicationDetail() {
           </div>
         </div>
       )}
+
+      <DeleteApplicationModal
+        application={app}
+        open={showDeleteConfirm}
+        deleting={deleting}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

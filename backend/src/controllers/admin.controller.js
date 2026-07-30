@@ -3,6 +3,7 @@ const XLSX = require('xlsx');
 const { generateApplicationPDF } = require('../utils/export');
 const { generateApplicationWord } = require('../utils/wordExport');
 const { getWorkingDaysRemaining, getDeadlineDate } = require('../utils/workingDays');
+const { canTransition } = require('../utils/applicationRules');
 const prisma = new PrismaClient();
 
 // Barcha arizalar (filter + pagination)
@@ -95,24 +96,22 @@ exports.updateApplicationStatus = async (req, res) => {
     const { id } = req.params;
     const { status, comment } = req.body;
 
-    const validStatuses = ['UNDER_REVIEW', 'HAS_ISSUES', 'APPROVED', 'REJECTED'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({ error: 'Noto\'g\'ri status' });
-    }
-
     const application = await prisma.application.findUnique({ where: { id: parseInt(id) } });
     if (!application) return res.status(404).json({ error: 'Ariza topilmadi' });
+    if (!canTransition(application.status, status)) {
+      return res.status(400).json({
+        error: `${application.status} holatidan ${status || 'noma’lum'} holatiga o'tish mumkin emas`
+      });
+    }
+    if (status === 'HAS_ISSUES' && !String(comment || '').trim()) {
+      return res.status(400).json({ error: 'Kamchiliklar haqida izoh majburiy' });
+    }
 
     // APPROVED statusida approved_at vaqtini belgilash
     const updateData = { status, admin_comment: comment || null };
     if (status === 'APPROVED' && !application.approved_at) {
       updateData.approved_at = new Date();
     }
-    // Agar APPROVED dan boshqa statusa qaytsa, approved_at ni olib tashlash
-    if (status !== 'APPROVED' && application.status === 'APPROVED') {
-      updateData.approved_at = null;
-    }
-
     const [updated] = await prisma.$transaction([
       prisma.application.update({
         where: { id: parseInt(id) },
