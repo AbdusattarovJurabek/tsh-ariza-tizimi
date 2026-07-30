@@ -2,6 +2,7 @@ const { PrismaClient } = require('@prisma/client');
 const path = require('path');
 const fs = require('fs');
 const { generateApplicationWord } = require('../utils/wordExport');
+const { generateApplicationPDF } = require('../utils/export');
 const { validateUploadedFile } = require('../middleware/upload');
 const {
   REQUIRED_FILE_TYPES,
@@ -407,6 +408,39 @@ exports.exportMyApplicationWord = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Word fayl yaratishda xato' });
+  }
+};
+
+// Foydalanuvchi o'z tasdiqlangan arizasini PDF formatda yuklab oladi
+exports.exportMyApplicationPDF = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const application = await prisma.application.findFirst({
+      where: { id: parseInt(id), user_id: req.user.id },
+      include: {
+        files: true,
+        user: { select: { full_name: true, region: true, district: true, phone: true } }
+      }
+    });
+    if (!application) return res.status(404).json({ error: 'Ariza topilmadi' });
+    if (application.status !== 'APPROVED') {
+      return res.status(403).json({ error: 'Faqat tasdiqlangan arizalarni PDF formatda yuklab olish mumkin' });
+    }
+
+    const approvedPdfFile = application.files.find(f => f.file_type === 'APPROVED_PDF');
+    if (approvedPdfFile && fs.existsSync(approvedPdfFile.file_path)) {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${approvedPdfFile.file_name}"`);
+      return res.sendFile(path.resolve(approvedPdfFile.file_path));
+    }
+
+    const pdfBuffer = await generateApplicationPDF(application);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Disposition', `inline; filename="TSH-${application.app_number}.html"`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'PDF yaratishda xato' });
   }
 };
 

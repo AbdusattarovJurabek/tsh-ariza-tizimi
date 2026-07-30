@@ -22,9 +22,8 @@ export default function Login() {
 
     setLoading(true);
     try {
-      const res = await authAPI.login(username.trim(), password);
-      const { user, token } = res.data;
-      login(user, token);
+      const user = await login(username.trim(), password);
+      toast.success('Xush kelibsiz!');
 
       if (user.must_change_password) {
         navigate('/change-password');

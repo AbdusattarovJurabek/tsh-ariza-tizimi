@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { PlusCircle, FileText, CheckCircle, AlertCircle, Clock, Eye, Trash2 } from 'lucide-react';
-import { applicationAPI } from '../services/api';
+import { PlusCircle, FileText, CheckCircle, AlertCircle, Clock, Eye, Trash2, Download } from 'lucide-react';
+import { applicationAPI, downloadBlob } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
 import DeleteApplicationModal from '../components/DeleteApplicationModal';
 import { useAuth } from '../contexts/AuthContext';
@@ -37,6 +37,18 @@ export default function UserDashboard() {
     acc[a.status] = (acc[a.status] || 0) + 1;
     return acc;
   }, {});
+
+  const handleDownloadPDF = async (app) => {
+    try {
+      const loadingToast = toast.loading('PDF yuklanmoqda...');
+      const res = await applicationAPI.exportPDF(app.id);
+      downloadBlob(res.data, `TSH-${app.app_number}.pdf`);
+      toast.dismiss(loadingToast);
+      toast.success('PDF yuklandi');
+    } catch {
+      toast.error('PDF yuklab olishda xato');
+    }
+  };
 
   const handleDelete = async (application) => {
     setDeletingId(application.id);
@@ -123,10 +135,20 @@ export default function UserDashboard() {
                       {new Date(app.created_at).toLocaleDateString('uz-UZ')}
                     </td>
                     <td className="py-3 px-3">
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 items-center">
                         <Link to={`/applications/${app.id}`} className="text-primary-600 hover:text-primary-800 flex items-center gap-1 text-xs font-medium">
                           <Eye size={14} /> Ko'rish
                         </Link>
+                        {['APPROVED', 'SIGNED'].includes(app.status) && (
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadPDF(app)}
+                            className="text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded text-xs font-bold flex items-center gap-1 transition-colors"
+                            title="PDF ma'lumotnomani yuklab olish"
+                          >
+                            <Download size={13} /> Yuklash
+                          </button>
+                        )}
                         {['DRAFT', 'HAS_ISSUES'].includes(app.status) && (
                           <Link to={`/applications/${app.id}/edit`} className="text-blue-600 hover:text-blue-800 text-xs font-medium">
                             Tahrirlash

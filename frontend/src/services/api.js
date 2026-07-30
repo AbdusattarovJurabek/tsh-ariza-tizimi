@@ -63,6 +63,7 @@ export const applicationAPI = {
   }),
   deleteFile: (id, fileId) => api.delete(`/applications/${id}/files/${fileId}`),
   exportWord: (id) => api.get(`/applications/${id}/export/word`, { responseType: 'blob' }),
+  exportPDF: (id) => api.get(`/applications/${id}/export/pdf`, { responseType: 'blob' }),
 };
 
 export const adminAPI = {
@@ -94,6 +95,9 @@ export const tasdiqlovchiAPI = {
   getApplications: (params) => api.get('/tasdiqlovchi/applications', { params }),
   getApplication: (id) => api.get(`/tasdiqlovchi/applications/${id}`),
   updateStatus: (id, data) => api.patch(`/tasdiqlovchi/applications/${id}/status`, data),
+  approveWithPdf: (id, formData) => api.post(`/tasdiqlovchi/applications/${id}/approve-pdf`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
   updateWordContent: (id, data) => api.put(`/tasdiqlovchi/applications/${id}/word-content`, data),
   saveHtmlContent: (id, html) => api.put(`/tasdiqlovchi/applications/${id}/html-content`, { html }),
   exportWord: (id) => api.get(`/tasdiqlovchi/applications/${id}/word`, { responseType: 'blob' }),

@@ -6,8 +6,8 @@ async function main() {
   const isProduction = process.env.NODE_ENV === 'production';
   const shouldSeed = true;
 
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'Admin@123';
-  const userPassword = process.env.SEED_USER_PASSWORD || 'User@123';
+  const adminPassword = String(process.env.SEED_ADMIN_PASSWORD || '').trim() || 'Admin@123';
+  const userPassword = String(process.env.SEED_USER_PASSWORD || '').trim() || 'User@123';
   if (!adminPassword || !userPassword) {
     throw new Error('Production seed uchun SEED_ADMIN_PASSWORD va SEED_USER_PASSWORD majburiy');
   }
@@ -21,7 +21,7 @@ async function main() {
   // ── Foydalanuvchilar ──
   await prisma.user.upsert({
     where: { username: 'superadmin' },
-    update: { role: 'SUPERADMIN', status: 'ACTIVE', password_hash: adminHash, must_change_password: false },
+    update: { role: 'SUPERADMIN', status: 'ACTIVE' },
     create: {
       full_name: 'Super Administrator', username: 'superadmin',
       password_hash: adminHash, role: 'SUPERADMIN',
@@ -31,7 +31,7 @@ async function main() {
 
   await prisma.user.upsert({
     where: { username: 'tasdiqlovchi1' },
-    update: { role: 'TASDIQLOVCHI', status: 'ACTIVE', password_hash: adminHash, must_change_password: false },
+    update: { role: 'TASDIQLOVCHI', status: 'ACTIVE' },
     create: {
       full_name: 'Toshkent Tasdiqlovchi', username: 'tasdiqlovchi1',
       password_hash: adminHash, role: 'TASDIQLOVCHI',
@@ -41,7 +41,7 @@ async function main() {
 
   await prisma.user.upsert({
     where: { username: 'admin1' },
-    update: { role: 'TASDIQLOVCHI', status: 'ACTIVE', password_hash: adminHash, must_change_password: false },
+    update: { role: 'TASDIQLOVCHI', status: 'ACTIVE' },
     create: {
       full_name: 'Admin Tasdiqlovchi', username: 'admin1',
       password_hash: adminHash, role: 'TASDIQLOVCHI',
@@ -51,7 +51,7 @@ async function main() {
 
   const user001 = await prisma.user.upsert({
     where: { username: 'user001' },
-    update: { status: 'ACTIVE', password_hash: userHash, must_change_password: false },
+    update: { status: 'ACTIVE' },
     create: {
       full_name: 'Alisher Karimov', username: 'user001',
       password_hash: userHash, role: 'USER',

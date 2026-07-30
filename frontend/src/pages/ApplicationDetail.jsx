@@ -134,6 +134,16 @@ export default function ApplicationDetail() {
     }
   };
 
+  const handleDownloadPDF = async () => {
+    try {
+      const res = await applicationAPI.exportPDF(app.id);
+      downloadBlob(res.data, `TSH-${app.app_number}.html`);
+      toast.success('PDF tayyorlandi!');
+    } catch (err) {
+      toast.error('PDF yuklab olishda xato');
+    }
+  };
+
   const handleDelete = async () => {
     setDeleting(true);
     try {
@@ -176,15 +186,24 @@ export default function ApplicationDetail() {
           </div>
         </div>
         <div className="flex gap-2 flex-shrink-0">
-          {['APPROVED', 'SENT_TO_SIGNER', 'SIGNED'].includes(app.status) && (
-            <button
-              onClick={handleDownloadWord}
-              disabled={downloading}
-              className="btn-primary flex items-center gap-2 text-sm"
-            >
-              <FileText size={15} />
-              {downloading ? 'Yuklanmoqda...' : 'Word yuklab olish'}
-            </button>
+          {app.status === 'APPROVED' && (
+            <>
+              <button
+                onClick={handleDownloadPDF}
+                className="px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg shadow-sm flex items-center gap-2 text-sm transition-colors"
+              >
+                <FileText size={16} />
+                📄 PDF Hujjatini Yuklab Olish
+              </button>
+              <button
+                onClick={handleDownloadWord}
+                disabled={downloading}
+                className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-sm flex items-center gap-2 text-sm transition-colors"
+              >
+                <FileText size={16} />
+                {downloading ? 'Yuklanmoqda...' : '⬇ Word Yuklab Olish'}
+              </button>
+            </>
           )}
           {canEdit && (
             <Link to={`/applications/${app.id}/edit`} className="btn-secondary flex items-center gap-2 text-sm">

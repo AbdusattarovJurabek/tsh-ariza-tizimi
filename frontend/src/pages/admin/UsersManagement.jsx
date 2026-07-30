@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { userAPI, downloadBlob } from '../../services/api';
 import { UserPlus, Download, Upload, Search, Edit2, Key, Trash2, X, CheckCircle } from 'lucide-react';
-import { UZBEKISTAN_REGIONS } from '../../utils/constants';
+import { UZBEKISTAN_REGIONS, UZBEKISTAN_DISTRICTS } from '../../utils/constants';
 import toast from 'react-hot-toast';
 
 // Modal tashqarida — re-render bo'lmaydi
@@ -18,90 +18,100 @@ const Modal = ({ title, onClose, children }) => (
 );
 
 // UserForm TASHQARIDA aniqlangan — focus yo'qolmaydi
-const UserForm = ({ form, onChange, onSubmit, submitting, isEdit }) => (
-  <form onSubmit={onSubmit} className="space-y-4">
-    <div className="grid grid-cols-2 gap-3">
-      <div className="col-span-2">
-        <label className="block text-xs font-medium text-gray-600 mb-1">F.I.Sh. *</label>
-        <input
-          className="input-field text-sm"
-          value={form.full_name}
-          onChange={e => onChange('full_name', e.target.value)}
-          placeholder="To'liq ism"
-          required
-        />
-      </div>
-      <div>
-        <label className="block text-xs font-medium text-gray-600 mb-1">Login *</label>
-        <input
-          className="input-field text-sm"
-          value={form.username}
-          onChange={e => onChange('username', e.target.value)}
-          placeholder="username"
-          required
-          disabled={isEdit}
-        />
-      </div>
-      {!isEdit && (
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Parol *</label>
+const UserForm = ({ form, onChange, onSubmit, submitting, isEdit }) => {
+  const districts = UZBEKISTAN_DISTRICTS[form.region] || [];
+
+  return (
+    <form onSubmit={onSubmit} className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="col-span-2">
+          <label className="block text-xs font-medium text-gray-600 mb-1">F.I.Sh. *</label>
           <input
-            type="password"
             className="input-field text-sm"
-            value={form.password}
-            onChange={e => onChange('password', e.target.value)}
-            placeholder="Kamida 6 belgi"
+            value={form.full_name}
+            onChange={e => onChange('full_name', e.target.value)}
+            placeholder="To'liq ism"
             required
           />
         </div>
-      )}
-      <div>
-        <label className="block text-xs font-medium text-gray-600 mb-1">Rol</label>
-        <select
-          className="input-field text-sm"
-          value={form.role}
-          onChange={e => onChange('role', e.target.value)}
-        >
-          <option value="USER">Foydalanuvchi</option>
-          <option value="TASDIQLOVCHI">Tasdiqlovchi</option>
-          <option value="SUPERADMIN">Super Admin</option>
-        </select>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Login *</label>
+          <input
+            className="input-field text-sm"
+            value={form.username}
+            onChange={e => onChange('username', e.target.value)}
+            placeholder="username"
+            required
+            disabled={isEdit}
+          />
+        </div>
+        {!isEdit && (
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Parol *</label>
+            <input
+              type="password"
+              className="input-field text-sm"
+              value={form.password}
+              onChange={e => onChange('password', e.target.value)}
+              placeholder="Kamida 6 belgi"
+              required
+            />
+          </div>
+        )}
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Rol</label>
+          <select
+            className="input-field text-sm"
+            value={form.role}
+            onChange={e => onChange('role', e.target.value)}
+          >
+            <option value="USER">Foydalanuvchi</option>
+            <option value="TASDIQLOVCHI">Tasdiqlovchi</option>
+            <option value="SUPERADMIN">Super Admin</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Viloyat</label>
+          <select
+            className="input-field text-sm"
+            value={form.region}
+            onChange={e => {
+              onChange('region', e.target.value);
+              onChange('district', '');
+            }}
+          >
+            <option value="">Tanlang...</option>
+            {UZBEKISTAN_REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Tuman</label>
+          <select
+            className="input-field text-sm"
+            value={form.district}
+            onChange={e => onChange('district', e.target.value)}
+            disabled={!form.region}
+          >
+            <option value="">{form.region ? "Tuman tanlang..." : "Avval viloyatni tanlang"}</option>
+            {districts.map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Telefon</label>
+          <input
+            className="input-field text-sm"
+            value={form.phone}
+            onChange={e => onChange('phone', e.target.value)}
+            placeholder="+998..."
+          />
+        </div>
       </div>
-      <div>
-        <label className="block text-xs font-medium text-gray-600 mb-1">Viloyat</label>
-        <select
-          className="input-field text-sm"
-          value={form.region}
-          onChange={e => onChange('region', e.target.value)}
-        >
-          <option value="">Tanlang...</option>
-          {UZBEKISTAN_REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
-        </select>
-      </div>
-      <div>
-        <label className="block text-xs font-medium text-gray-600 mb-1">Tuman</label>
-        <input
-          className="input-field text-sm"
-          value={form.district}
-          onChange={e => onChange('district', e.target.value)}
-          placeholder="Tuman"
-        />
-      </div>
-      <div>
-        <label className="block text-xs font-medium text-gray-600 mb-1">Telefon</label>
-        <input
-          className="input-field text-sm"
-          value={form.phone}
-          onChange={e => onChange('phone', e.target.value)}
-          placeholder="+998..."
-        />
-      </div>
-    </div>
-    <button type="submit" disabled={submitting} className="btn-primary w-full">
-      {submitting ? 'Saqlanmoqda...' : isEdit ? 'Saqlash' : 'Yaratish'}
-    </button>
-  </form>
-);
+      <button type="submit" disabled={submitting} className="btn-primary w-full">
+        {submitting ? 'Saqlanmoqda...' : isEdit ? 'Saqlash' : 'Yaratish'}
+      </button>
+    </form>
+  );
+};
 
 const EMPTY_FORM = { full_name: '', username: '', password: '', role: 'USER', region: '', district: '', phone: '' };
 

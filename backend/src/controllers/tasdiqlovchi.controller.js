@@ -84,7 +84,7 @@ exports.updateStatus = async (req, res) => {
 
     const application = await prisma.application.findUnique({ where: { id: parseInt(id) } });
     if (!application) return res.status(404).json({ error: 'Ariza topilmadi' });
-    if (!['UNDER_REVIEW', 'APPROVED'].includes(application.status)) {
+    if (!['SUBMITTED', 'UNDER_REVIEW', 'APPROVED'].includes(application.status)) {
       return res.status(400).json({ error: 'Bu holatda hujjat mazmunini tahrirlash mumkin emas' });
     }
     if (!canTransition(application.status, status)) {
@@ -121,7 +121,7 @@ exports.updateWordContent = async (req, res) => {
     const { id } = req.params;
     const application = await prisma.application.findUnique({ where: { id: parseInt(id) } });
     if (!application) return res.status(404).json({ error: 'Ariza topilmadi' });
-    if (!['UNDER_REVIEW', 'APPROVED'].includes(application.status)) {
+    if (!['SUBMITTED', 'UNDER_REVIEW', 'APPROVED'].includes(application.status)) {
       return res.status(400).json({ error: 'Bu holatda hujjat mazmunini tahrirlash mumkin emas' });
     }
     await prisma.application.update({
@@ -196,6 +196,13 @@ exports.exportPDF = async (req, res) => {
       return res.status(404).json({ error: 'Ariza topilmadi' });
     }
 
+    const approvedPdfFile = application.files.find(f => f.file_type === 'APPROVED_PDF');
+    if (approvedPdfFile && fs.existsSync(approvedPdfFile.file_path)) {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${approvedPdfFile.file_name}"`);
+      return res.sendFile(path.resolve(approvedPdfFile.file_path));
+    }
+
     const pdfBuffer = await generateApplicationPDF(application);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Content-Disposition', `inline; filename="TSH-${application.app_number}.html"`);
@@ -203,6 +210,61 @@ exports.exportPDF = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'PDF yaratishda xato' });
+  }
+};
+
+// Tasdiqlovchi o'zi kompyuterdan PDF yuklab tasdiqlaydi
+exports.approveWithPdf = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { comment } = req.body;
+
+    const application = await prisma.application.findUnique({ where: { id: parseInt(id) } });
+    if (!application) return res.status(404).json({ error: 'Ariza topilmadi' });
+
+    if (req.file) {
+      const pdfFilePath = req.file.path.replace(/\\/g, '/');
+      const pdfFileName = req.file.originalname;
+
+      await prisma.applicationFile.deleteMany({
+        where: { application_id: parseInt(id), file_type: 'APPROVED_PDF' }
+      });
+
+      await prisma.applicationFile.create({
+        data: {
+          application_id: parseInt(id),
+          file_type: 'APPROVED_PDF',
+          file_name: pdfFileName,
+          file_path: pdfFilePath,
+          mime_type: req.file.mimetype || 'application/pdf',
+          file_size: req.file.size
+        }
+      });
+    }
+
+    const updateData = {
+      status: 'APPROVED',
+      admin_comment: comment || null,
+      approved_at: new Date()
+    };
+
+    const [updated] = await prisma.$transaction([
+      prisma.application.update({ where: { id: parseInt(id) }, data: updateData }),
+      prisma.statusHistory.create({
+        data: {
+          application_id: parseInt(id),
+          old_status: application.status,
+          new_status: 'APPROVED',
+          comment: comment || 'Tasdiqlovchi tomonidan PDF biriktirib tasdiqlandi',
+          changed_by_id: req.user.id
+        }
+      })
+    ]);
+
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Tasdiqlashda xato' });
   }
 };
 
