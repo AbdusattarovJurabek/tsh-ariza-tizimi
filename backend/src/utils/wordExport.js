@@ -49,6 +49,31 @@ async function injectQRCode(docBuffer, qrPngBuffer) {
   }
 }
 
+function replaceParagraphText(xmlStr, searchTextPattern, newText) {
+  const pRegex = /<w:p[\s\S]*?<\/w:p>/g;
+  return xmlStr.replace(pRegex, (pXml) => {
+    const text = pXml.replace(/<[^>]+>/g, '').trim();
+    if (searchTextPattern.test(text)) {
+      const escapedText = String(newText || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      let firstDone = false;
+      return pXml.replace(/<w:t[\s\S]*?>([\s\S]*?)<\/w:t>/g, (tXml) => {
+        if (!firstDone) {
+          firstDone = true;
+          const prefix = tXml.slice(0, tXml.indexOf('>') + 1);
+          return prefix + escapedText + '</w:t>';
+        } else {
+          const prefix = tXml.slice(0, tXml.indexOf('>') + 1);
+          return prefix + '</w:t>';
+        }
+      });
+    }
+    return pXml;
+  });
+}
+
 const generateApplicationWord = async (application) => {
   const content = fs.readFileSync(TEMPLATE_PATH, 'binary');
   const zip = new PizZip(content);
@@ -62,84 +87,66 @@ const generateApplicationWord = async (application) => {
   const bogLabel = numArea >= 10 ? "sanoatlashgan intensiv bog‘" : "intensiv bog‘";
   const bogTokzorLabel = numArea >= 10 ? "sanoatlashgan intensiv bog‘-tokzor" : "intensiv bog‘-tokzor";
 
-  // Replace text in document.xml with clean docxtemplater tags
-  xml = xml.replace(/sanoatlashgan intensiv bog‘-tokzor/g, bogTokzorLabel);
-  xml = xml.replace(/sanoatlashgan intensiv bog‘/g, bogLabel);
+  const stir = application.stir || '';
+  const leaderName = application.leader_full_name || '';
+  const address = application.legal_address || application.garden_address || '';
+  const locationUrl = application.location_url || '';
+  const spec = application.land_specialization || 'Bog‘dorchilik';
+  const landDec = formatLandDecision(application);
+  const leaseCon = formatLeaseContract(application);
+  const regInfo = formatRegistryInfo(application);
+  const soilInfo = formatSoilInfo(application);
+  const waterInfo = formatWaterSupplyInfo(application);
+  const weatherInfo = formatWeatherAnalysis(application);
+  const sciInfo = formatScientificRecommendation(application);
+  const fruitType = application.fruit_type || '';
+  const fruitVariety = application.fruit_variety || '';
+  const scheme = application.planting_scheme || '';
+  const seedlingInfo = formatSeedlingInfo(application);
 
-  xml = xml.replace(
-    /Navoiy viloyati Xatirchi tumanida “FAYZULLA BOBO MEVALI BOG‘LARI”/g,
-    '{region_name} viloyati {district_name} tumanida “{subject_name}”'
-  );
-  xml = xml.replace(/10 gektar maydonda/g, '{garden_area} gektar maydonda');
-  xml = xml.replace(/“FAYZULLA BOBO MEVALI BOG‘LARI” f\/x/g, '“{subject_name}”');
-  xml = xml.replace(/STIR: 307119794/g, 'STIR: {stir}');
-  xml = xml.replace(/FAYZULLAEV UMIDJON TOShPULAT O‘G‘LI/g, '{leader_full_name}');
-  xml = xml.replace(/Navoiy viloyati, Xatirchi tumani, Qoracha QFY/g, '{legal_address}');
-  xml = xml.replace(/https:\/\/maps\.app\.goo\.gl\/f9aazoZdvjS5DFge9/g, '{location_url}');
-  xml = xml.replace(/Yer maydoni 10 gektar\./g, 'Yer maydoni {garden_area} gektar.');
-  xml = xml.replace(/18\.03\.2020 y\., №Q-506-son/g, '{land_decision}');
-  xml = xml.replace(/27\.03\.2020 y\., №420-son/g, '{lease_contract}');
-  xml = xml.replace(/10\.06\.2025 y\., R-XATT38151356\./g, '{registry_info}');
+  // 1. Cover Page replacements
+  xml = replaceParagraphText(xml, /Navoiy viloyati Xatirchi tumanida/i, `${regDist.region} viloyati ${regDist.district} tumanida “${subjectName}”`);
+  xml = replaceParagraphText(xml, /10 gektar maydonda/i, `${gardenArea} gektar maydonda`);
+  xml = replaceParagraphText(xml, /sanoatlashgan intensiv bog‘ barpo etish bo‘yicha/i, `${bogLabel} barpo etish bo‘yicha`);
 
-  xml = xml.replace(
-    /-TUPROQSHUNOSLIK VA AGROKIMYOVIY TADQIQOTLAR INSTITUTINING BUXORO MINTAQAVIY BO‘LINMASIning 2023 yildagi xulosasi\./g,
-    '-{soil_info}'
-  );
-  xml = xml.replace(
-    /-Xatirchi tumani “Suv yetkazib berish xizmati” DMning 2026 yil 29 iyuldagi № 499 ma’lumotnomasi\./g,
-    '-{water_supply_info}'
-  );
-  xml = xml.replace(
-    /-Navoiy viloyati Gidrometeorologiya xizmati agentligining 2026 yil 16-yanvardagi\s*09\/001-sonli ma’lumotnomasi\./g,
-    '-{weather_analysis}'
-  );
-  xml = xml.replace(
-    /-Mavjud emas\./g,
-    '-{scientific_recommendation}'
-  );
+  // Insert Page Break after Toshkent - 2026 paragraph cleanly
+  const pageBreakXml = '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
+  xml = xml.replace(/(Toshkent\s*-\s*2026<\/w:t><\/w:r><\/w:p>)/i, '$1' + pageBreakXml);
 
-  xml = xml.replace(/Bodom ko‘chati\./g, '{fruit_type} ko‘chati.');
-  xml = xml.replace(/“Avijor” navi\./g, '“{fruit_variety}” navi.');
-  xml = xml.replace(/6x3 sxemada\./g, '{planting_scheme} sxemada.');
-  xml = xml.replace(/1 gektarga 555 tup, jami 10 gektarga 5\s*555 tup\./g, '{seedling_info}');
+  // 2. Section I replacements
+  xml = replaceParagraphText(xml, /hududlarda sanoatlashgan intensiv bog‘ barpo etish uchun/i, `Ushbu texnik shart (TSH) O‘zbekiston Respublikasi Prezidentining 2024-yil 30-sentabrdagi PF-151-son Farmoni, 2024-yil 30-sentabrdagi PQ-344-son Qarori, 2026-yil 9-iyundagi PF-108-son Farmoni, Vazirlar Mahkamasining 2025-yil 23-apreldagi 255-son Qarori ijrosini ta’minlash maqsadida hududlarda ${bogLabel} barpo etish uchun “${subjectName}” tomonidan taklif etilayotgan faoliyatning samaradorligi va iqtisodiy maqsadga muvofiqligini asoslash, amaldagi qonunchilik, normalar, ko‘rsatmalar va standartlarga muvofiq ishlab chiqilgan.`);
 
-  xml = xml.replace(/Navoiy viloyati bo‘limi boshlig‘i/g, '{region_name} viloyati bo‘limi boshlig‘i');
-  xml = xml.replace(/Navoiy viloyati, Xatirchi tumani bosh mutaxassisi/g, '{region_name} viloyati, {district_name} tumani bosh mutaxassisi');
+  xml = replaceParagraphText(xml, /FAYZULLA BOBO MEVALI BOG‘LARI.*STIR/i, `“${subjectName}”, STIR: ${stir}.`);
+  xml = replaceParagraphText(xml, /FAYZULLAEV UMIDJON TOShPULAT/i, leaderName);
+  xml = replaceParagraphText(xml, /Navoiy viloyati,\s*Xatirchi tumani,\s*Qoracha QFY/i, address);
+  xml = replaceParagraphText(xml, /Bog‘dorchilik/i, spec);
+  xml = replaceParagraphText(xml, /maps\.app\.goo\.gl/i, locationUrl);
+  xml = replaceParagraphText(xml, /Yer maydoni 10 gektar\./i, `Yer maydoni ${gardenArea} gektar.`);
+  xml = replaceParagraphText(xml, /18\.03\.2020 y\., №Q-506-son/i, landDec);
+  xml = replaceParagraphText(xml, /27\.03\.2020 y\., №420-son/i, leaseCon);
+  xml = replaceParagraphText(xml, /10\.06\.2025 y\., R-XATT/i, regInfo);
+
+  xml = replaceParagraphText(xml, /TUPROQSHUNOSLIK VA AGROKIMYOVIY/i, `-${soilInfo}`);
+  xml = replaceParagraphText(xml, /Suv yetkazib berish xizmati/i, `-${waterInfo}`);
+  xml = replaceParagraphText(xml, /Gidrometeorologiya xizmati agentligining/i, `-${weatherInfo}`);
+  xml = replaceParagraphText(xml, /-\s*Mavjud emas\./i, `-${sciInfo}`);
+
+  // 3. Section II replacements
+  xml = replaceParagraphText(xml, /Bodom ko‘chati\./i, `${fruitType} ko‘chati.`);
+  xml = replaceParagraphText(xml, /“Avijor” navi\./i, `“${fruitVariety}” navi.`);
+  xml = replaceParagraphText(xml, /6x3 sxemada\./i, `${scheme} sxemada.`);
+  xml = replaceParagraphText(xml, /1 gektarga 555 tup/i, seedlingInfo);
+
+  // 4. Section IV & Signatures
+  xml = replaceParagraphText(xml, /yangi sanoatlashgan intensiv bog‘-tokzor/i, `yangi ${bogTokzorLabel}`);
+  xml = replaceParagraphText(xml, /sanoatlashgan intensiv bog‘-tokzor loyihasini/i, `${bogTokzorLabel} loyihasini`);
+
+  xml = replaceParagraphText(xml, /Navoiy viloyati bo‘limi boshlig‘i/i, `${regDist.region} viloyati bo‘limi boshlig‘i`);
+  xml = replaceParagraphText(xml, /Navoiy viloyati, Xatirchi tumani bosh mutaxassisi/i, `${regDist.region} viloyati, ${regDist.district} tumani bosh mutaxassisi`);
 
   zip.file('word/document.xml', xml);
 
-  const doc = new Docxtemplater(zip, {
-    paragraphLoop: true,
-    linebreaks: true,
-    delimiters: { start: '{', end: '}' },
-  });
-
-  const trackingUrl = APP_BASE_URL + '/track/' + (application.app_number || '');
-
-  doc.render({
-    region_name:               regDist.region,
-    district_name:             regDist.district,
-    subject_name:              subjectName,
-    stir:                      application.stir || '',
-    leader_full_name:          application.leader_full_name || '',
-    legal_address:             application.legal_address || application.garden_address || '',
-    garden_area:               gardenArea,
-    location_url:              application.location_url || '',
-    land_decision:             formatLandDecision(application),
-    lease_contract:            formatLeaseContract(application),
-    registry_info:             formatRegistryInfo(application),
-    soil_info:                 formatSoilInfo(application),
-    water_supply_info:         formatWaterSupplyInfo(application),
-    weather_analysis:          formatWeatherAnalysis(application),
-    scientific_recommendation: formatScientificRecommendation(application),
-    fruit_type:                application.fruit_type || '',
-    fruit_variety:             application.fruit_variety || '',
-    planting_scheme:           application.planting_scheme || '',
-    seedling_info:             formatSeedlingInfo(application),
-  });
-
-  let docBuffer = doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' });
-  return docBuffer;
+  return zip.generate({ type: 'nodebuffer', compression: 'DEFLATE' });
 };
 
 function extractRegionAndDistrict(app) {
