@@ -56,130 +56,89 @@ const generateApplicationWord = async (application) => {
   let xml = zip.file('word/document.xml').asText();
 
   const regDist = extractRegionAndDistrict(application);
-  const subjectName = application.subject_name || '';
+  const subjectName = application.subject_name || application.leader_full_name || '';
   const gardenArea = application.garden_area ? String(application.garden_area) : (application.total_land_area ? String(application.total_land_area) : '');
-  const stir = application.stir || '';
-  const leaderName = application.leader_full_name || '';
-  const address = application.legal_address || application.garden_address || '';
-  const locationUrl = application.location_url || '';
-  const spec = application.land_specialization || 'Bog‘dorchilik';
-  const landDec = formatLandDecision(application);
-  const leaseCon = formatLeaseContract(application);
-  const regInfo = formatRegistryInfo(application);
-  const soilInfo = formatSoilInfo(application);
-  const waterInfo = formatWaterSupplyInfo(application);
-  const weatherInfo = formatWeatherAnalysis(application);
-  const sciInfo = formatScientificRecommendation(application);
-  const fruitType = application.fruit_type || '';
-  const fruitVariety = application.fruit_variety || '';
-  const scheme = application.planting_scheme || '';
-  const seedlingInfo = formatSeedlingInfo(application);
-
   const numArea = Number(gardenArea) || 0;
   const bogLabel = numArea >= 10 ? "sanoatlashgan intensiv bog‘" : "intensiv bog‘";
   const bogTokzorLabel = numArea >= 10 ? "sanoatlashgan intensiv bog‘-tokzor" : "intensiv bog‘-tokzor";
 
-  xml = xml.replace(
-    /sanoatlashgan intensiv bog‘/g,
-    bogLabel
-  );
-  xml = xml.replace(
-    /sanoatlashgan intensiv bog‘-tokzor/g,
-    bogTokzorLabel
-  );
+  // Replace text in document.xml with clean docxtemplater tags
+  xml = xml.replace(/sanoatlashgan intensiv bog‘-tokzor/g, bogTokzorLabel);
+  xml = xml.replace(/sanoatlashgan intensiv bog‘/g, bogLabel);
 
   xml = xml.replace(
     /Navoiy viloyati Xatirchi tumanida “FAYZULLA BOBO MEVALI BOG‘LARI”/g,
-    `${regDist.region} viloyati ${regDist.district} tumanida “${subjectName}”`
+    '{region_name} viloyati {district_name} tumanida “{subject_name}”'
   );
-  xml = xml.replace(
-    /10 gektar maydonda/g,
-    `${gardenArea} gektar maydonda`
-  );
-  xml = xml.replace(
-    /“FAYZULLA BOBO MEVALI BOG‘LARI” f\/x/g,
-    `“${subjectName}”`
-  );
-  xml = xml.replace(
-    /STIR: 307119794/g,
-    `STIR: ${stir}`
-  );
-  xml = xml.replace(
-    /FAYZULLAEV UMIDJON TOShPULAT O‘G‘LI/g,
-    leaderName
-  );
-  xml = xml.replace(
-    /Navoiy viloyati, Xatirchi tumani, Qoracha QFY/g,
-    address
-  );
-  xml = xml.replace(
-    /https:\/\/maps\.app\.goo\.gl\/f9aazoZdvjS5DFge9/g,
-    locationUrl
-  );
-  xml = xml.replace(
-    /Yer maydoni 10 gektar\./g,
-    `Yer maydoni ${gardenArea} gektar.`
-  );
-  xml = xml.replace(
-    /18\.03\.2020 y\., №Q-506-son/g,
-    landDec
-  );
-  xml = xml.replace(
-    /27\.03\.2020 y\., №420-son/g,
-    leaseCon
-  );
-  xml = xml.replace(
-    /10\.06\.2025 y\., R-XATT38151356\./g,
-    regInfo
-  );
+  xml = xml.replace(/10 gektar maydonda/g, '{garden_area} gektar maydonda');
+  xml = xml.replace(/“FAYZULLA BOBO MEVALI BOG‘LARI” f\/x/g, '“{subject_name}”');
+  xml = xml.replace(/STIR: 307119794/g, 'STIR: {stir}');
+  xml = xml.replace(/FAYZULLAEV UMIDJON TOShPULAT O‘G‘LI/g, '{leader_full_name}');
+  xml = xml.replace(/Navoiy viloyati, Xatirchi tumani, Qoracha QFY/g, '{legal_address}');
+  xml = xml.replace(/https:\/\/maps\.app\.goo\.gl\/f9aazoZdvjS5DFge9/g, '{location_url}');
+  xml = xml.replace(/Yer maydoni 10 gektar\./g, 'Yer maydoni {garden_area} gektar.');
+  xml = xml.replace(/18\.03\.2020 y\., №Q-506-son/g, '{land_decision}');
+  xml = xml.replace(/27\.03\.2020 y\., №420-son/g, '{lease_contract}');
+  xml = xml.replace(/10\.06\.2025 y\., R-XATT38151356\./g, '{registry_info}');
 
   xml = xml.replace(
     /-TUPROQSHUNOSLIK VA AGROKIMYOVIY TADQIQOTLAR INSTITUTINING BUXORO MINTAQAVIY BO‘LINMASIning 2023 yildagi xulosasi\./g,
-    `-${soilInfo}`
+    '-{soil_info}'
   );
   xml = xml.replace(
     /-Xatirchi tumani “Suv yetkazib berish xizmati” DMning 2026 yil 29 iyuldagi № 499 ma’lumotnomasi\./g,
-    `-${waterInfo}`
+    '-{water_supply_info}'
   );
   xml = xml.replace(
     /-Navoiy viloyati Gidrometeorologiya xizmati agentligining 2026 yil 16-yanvardagi\s*09\/001-sonli ma’lumotnomasi\./g,
-    `-${weatherInfo}`
+    '-{weather_analysis}'
   );
   xml = xml.replace(
     /-Mavjud emas\./g,
-    `-${sciInfo}`
+    '-{scientific_recommendation}'
   );
 
-  xml = xml.replace(
-    /Bodom ko‘chati\./g,
-    `${fruitType} ko‘chati.`
-  );
-  xml = xml.replace(
-    /“Avijor” navi\./g,
-    `“${fruitVariety}” navi.`
-  );
-  xml = xml.replace(
-    /6x3 sxemada\./g,
-    `${scheme} sxemada.`
-  );
-  xml = xml.replace(
-    /1 gektarga 555 tup, jami 10 gektarga 5\s*555 tup\./g,
-    seedlingInfo
-  );
+  xml = xml.replace(/Bodom ko‘chati\./g, '{fruit_type} ko‘chati.');
+  xml = xml.replace(/“Avijor” navi\./g, '“{fruit_variety}” navi.');
+  xml = xml.replace(/6x3 sxemada\./g, '{planting_scheme} sxemada.');
+  xml = xml.replace(/1 gektarga 555 tup, jami 10 gektarga 5\s*555 tup\./g, '{seedling_info}');
 
-  xml = xml.replace(
-    /Navoiy viloyati bo‘limi boshlig‘i/g,
-    `${regDist.region} viloyati bo‘limi boshlig‘i`
-  );
-  xml = xml.replace(
-    /Navoiy viloyati, Xatirchi tumani bosh mutaxassisi/g,
-    `${regDist.region} viloyati, ${regDist.district} tumani bosh mutaxassisi`
-  );
+  xml = xml.replace(/Navoiy viloyati bo‘limi boshlig‘i/g, '{region_name} viloyati bo‘limi boshlig‘i');
+  xml = xml.replace(/Navoiy viloyati, Xatirchi tumani bosh mutaxassisi/g, '{region_name} viloyati, {district_name} tumani bosh mutaxassisi');
 
   zip.file('word/document.xml', xml);
 
-  let docBuffer = zip.generate({ type: 'nodebuffer', compression: 'DEFLATE' });
+  const doc = new Docxtemplater(zip, {
+    paragraphLoop: true,
+    linebreaks: true,
+    delimiters: { start: '{', end: '}' },
+  });
+
   const trackingUrl = APP_BASE_URL + '/track/' + (application.app_number || '');
+
+  doc.render({
+    region_name:               regDist.region,
+    district_name:             regDist.district,
+    subject_name:              subjectName,
+    stir:                      application.stir || '',
+    leader_full_name:          application.leader_full_name || '',
+    legal_address:             application.legal_address || application.garden_address || '',
+    garden_area:               gardenArea,
+    location_url:              application.location_url || '',
+    land_decision:             formatLandDecision(application),
+    lease_contract:            formatLeaseContract(application),
+    registry_info:             formatRegistryInfo(application),
+    soil_info:                 formatSoilInfo(application),
+    water_supply_info:         formatWaterSupplyInfo(application),
+    weather_analysis:          formatWeatherAnalysis(application),
+    scientific_recommendation: formatScientificRecommendation(application),
+    fruit_type:                application.fruit_type || '',
+    fruit_variety:             application.fruit_variety || '',
+    planting_scheme:           application.planting_scheme || '',
+    seedling_info:             formatSeedlingInfo(application),
+  });
+
+  let docBuffer = doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' });
   const qrBuffer = await generateQRBuffer(trackingUrl);
   if (qrBuffer) {
     docBuffer = await injectQRCode(docBuffer, qrBuffer);
