@@ -75,6 +75,19 @@ const generateApplicationWord = async (application) => {
   const scheme = application.planting_scheme || '';
   const seedlingInfo = formatSeedlingInfo(application);
 
+  const numArea = Number(gardenArea) || 0;
+  const bogLabel = numArea >= 10 ? "sanoatlashgan intensiv bog‘" : "intensiv bog‘";
+  const bogTokzorLabel = numArea >= 10 ? "sanoatlashgan intensiv bog‘-tokzor" : "intensiv bog‘-tokzor";
+
+  xml = xml.replace(
+    /sanoatlashgan intensiv bog‘/g,
+    bogLabel
+  );
+  xml = xml.replace(
+    /sanoatlashgan intensiv bog‘-tokzor/g,
+    bogTokzorLabel
+  );
+
   xml = xml.replace(
     /Navoiy viloyati Xatirchi tumanida “FAYZULLA BOBO MEVALI BOG‘LARI”/g,
     `${regDist.region} viloyati ${regDist.district} tumanida “${subjectName}”`

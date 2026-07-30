@@ -105,18 +105,6 @@ exports.exportWord = async (req, res) => {
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', `attachment; filename="TSH-${application.app_number}.docx"`);
 
-    // Tasdiqlovchi HTML saqlagan bo'lsa — shuni ishlatamiz
-    if (application.word_html_content) {
-      const HTMLtoDOCX = require('html-to-docx');
-      const docBuffer = await HTMLtoDOCX(application.word_html_content, null, {
-        table: { row: { cantSplit: true } },
-        footer: true,
-        pageNumber: false,
-      });
-      return res.send(docBuffer);
-    }
-
-    // Aks holda — asl template
     let dataForWord = { ...application };
     if (application.word_content) {
       try {
