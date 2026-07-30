@@ -2,7 +2,7 @@ const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
 const XLSX = require('xlsx');
 const prisma = new PrismaClient();
-const ALLOWED_ROLES = ['USER', 'TASDIQLOVCHI', 'IMZOLOVCHI', 'SUPERADMIN'];
+const ALLOWED_ROLES = ['USER', 'TASDIQLOVCHI', 'SUPERADMIN'];
 
 // Barcha foydalanuvchilar (Admin uchun)
 exports.getAllUsers = async (req, res) => {

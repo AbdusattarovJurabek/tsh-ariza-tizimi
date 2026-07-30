@@ -96,13 +96,6 @@ export default function Sidebar({ open, onClose }) {
             <NavItem to="/tasdiqlovchi/applications" icon={ClipboardList} label="Arizalar" onClick={onClose} />
           </>
         )}
-        {isImzolovchi && (
-          <>
-            <p className="px-4 py-2 text-gray-500 text-xs uppercase font-semibold tracking-wider">Imzolovchi</p>
-            <NavItem to="/imzolovchi" icon={LayoutDashboard} label="Dashboard" onClick={onClose} />
-            <NavItem to="/imzolovchi/applications" icon={FileText} label="Hujjatlar" onClick={onClose} />
-          </>
-        )}
         {user?.role === 'USER' && (
           <>
             <p className="px-4 py-2 text-gray-500 text-xs uppercase font-semibold tracking-wider">Mening arizalarim</p>

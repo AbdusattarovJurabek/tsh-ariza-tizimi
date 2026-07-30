@@ -10,6 +10,7 @@ router.patch('/applications/:id/status', allow, role, ctrl.updateStatus);
 router.put('/applications/:id/word-content', allow, role, ctrl.updateWordContent);
 router.put('/applications/:id/html-content', allow, role, ctrl.saveHtmlContent);
 router.get('/applications/:id/word', allow, role, ctrl.exportWord);
+router.get('/applications/:id/pdf', allow, role, ctrl.exportPDF);
 router.get('/statistics', allow, role, ctrl.getStatistics);
 
 module.exports = router;

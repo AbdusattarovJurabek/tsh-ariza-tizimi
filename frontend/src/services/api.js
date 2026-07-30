@@ -97,6 +97,7 @@ export const tasdiqlovchiAPI = {
   updateWordContent: (id, data) => api.put(`/tasdiqlovchi/applications/${id}/word-content`, data),
   saveHtmlContent: (id, html) => api.put(`/tasdiqlovchi/applications/${id}/html-content`, { html }),
   exportWord: (id) => api.get(`/tasdiqlovchi/applications/${id}/word`, { responseType: 'blob' }),
+  exportPDF: (id) => api.get(`/tasdiqlovchi/applications/${id}/pdf`, { responseType: 'blob' }),
   previewWord: (id) => api.get(`/tasdiqlovchi/applications/${id}/word`, { responseType: 'arraybuffer' }),
   getStatistics: () => api.get('/tasdiqlovchi/statistics'),
 };

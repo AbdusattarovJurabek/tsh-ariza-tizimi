@@ -63,9 +63,7 @@ const UserForm = ({ form, onChange, onSubmit, submitting, isEdit }) => (
           onChange={e => onChange('role', e.target.value)}
         >
           <option value="USER">Foydalanuvchi</option>
-          <option value="ADMIN">Admin</option>
           <option value="TASDIQLOVCHI">Tasdiqlovchi</option>
-          <option value="IMZOLOVCHI">Imzolovchi</option>
           <option value="SUPERADMIN">Super Admin</option>
         </select>
       </div>

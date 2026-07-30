@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const { generateApplicationWord } = require('../utils/wordExport');
+const { generateApplicationPDF } = require('../utils/export');
 const { getWorkingDaysRemaining } = require('../utils/workingDays');
 const { canTransition } = require('../utils/applicationRules');
 const prisma = new PrismaClient();
@@ -177,6 +178,31 @@ exports.exportWord = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Word yaratishda xato' });
+  }
+};
+
+// PDF yuklab olish
+exports.exportPDF = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const application = await prisma.application.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        files: true,
+        user: { select: { full_name: true, region: true, district: true, phone: true } }
+      }
+    });
+    if (!application || application.status === 'DRAFT') {
+      return res.status(404).json({ error: 'Ariza topilmadi' });
+    }
+
+    const pdfBuffer = await generateApplicationPDF(application);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Disposition', `inline; filename="TSH-${application.app_number}.html"`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'PDF yaratishda xato' });
   }
 };
 

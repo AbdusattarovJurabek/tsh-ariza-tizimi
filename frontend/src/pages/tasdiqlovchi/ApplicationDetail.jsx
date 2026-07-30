@@ -63,6 +63,17 @@ export default function TasdiqlovchiApplicationDetail() {
     }
   };
 
+  const downloadPdf = async () => {
+    try {
+      const r = await tasdiqlovchiAPI.exportPDF(id);
+      downloadBlob(r.data, `TSH-${app.app_number}.html`);
+      toast.success('PDF tayyorlandi');
+    } catch (err) {
+      console.error('PDF export error:', err);
+      toast.error('PDF yaratishda xato');
+    }
+  };
+
   const updateStatus = async () => {
     if (!newStatus) return;
     try {
@@ -80,7 +91,6 @@ export default function TasdiqlovchiApplicationDetail() {
   );
 
   const isReadOnly      = !['UNDER_REVIEW', 'APPROVED'].includes(app.status);
-  const canSendToSigner = app.status === 'APPROVED';
   const allowedStatuses = STATUS_TRANSITIONS[app.status] || [];
   const canChangeStatus = allowedStatuses.length > 0;
 
@@ -108,16 +118,14 @@ export default function TasdiqlovchiApplicationDetail() {
             className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
             ⬇ Word
           </button>
+          <button onClick={downloadPdf}
+            className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700">
+            📄 PDF Ma'lumot
+          </button>
           {canChangeStatus && (
             <button onClick={() => { setNewStatus(''); setStatusModal(true); }}
               className="px-3 py-1.5 bg-gray-600 text-white rounded-lg text-sm font-medium hover:bg-gray-700">
               📋 Status
-            </button>
-          )}
-          {canSendToSigner && (
-            <button onClick={() => { setNewStatus('SENT_TO_SIGNER'); setStatusModal(true); }}
-              className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700">
-              ✍️ Imzolovchiga
             </button>
           )}
         </div>
@@ -141,11 +149,9 @@ export default function TasdiqlovchiApplicationDetail() {
               className="w-full border rounded-lg px-3 py-2 mb-3 text-sm">
               <option value="">Tanlang...</option>
               {[
-                ['UNDER_REVIEW', "Ko'rib chiqilmoqda"],
                 ['APPROVED', 'Tasdiqlash'],
-                ['HAS_ISSUES', 'Kamchilik bor'],
+                ['HAS_ISSUES', 'Qayta ishlashga yuborish (Kamchilik bor)'],
                 ['REJECTED', 'Rad etish'],
-                ['SENT_TO_SIGNER', 'Imzolovchiga yuborish'],
               ].filter(([value]) => allowedStatuses.includes(value))
                 .map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
