@@ -56,6 +56,7 @@ export const applicationAPI = {
   getOne: (id) => api.get(`/applications/${id}`),
   create: (data) => api.post('/applications', data),
   update: (id, data) => api.put(`/applications/${id}`, data),
+  delete: (id) => api.delete(`/applications/${id}`),
   submit: (id) => api.post(`/applications/${id}/submit`),
   uploadFile: (id, formData) => api.post(`/applications/${id}/files`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
@@ -82,6 +83,7 @@ export const userAPI = {
 
 export const farmerAPI = {
   getAll: () => api.get('/farmers'),
+  lookupOrganization: (stir) => api.get(`/farmers/lookup/${stir}`),
   getOne: (id) => api.get(`/farmers/${id}`),
   create: (data) => api.post('/farmers', data),
   update: (id, data) => api.put(`/farmers/${id}`, data),

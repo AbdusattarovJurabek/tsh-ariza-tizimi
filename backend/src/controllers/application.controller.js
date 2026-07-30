@@ -6,14 +6,22 @@ const { validateUploadedFile } = require('../middleware/upload');
 const {
   REQUIRED_FILE_TYPES,
   canTransition,
+  canUserDeleteApplication,
+  validateNonNegativeValues,
   validateApplicationForSubmit,
 } = require('../utils/applicationRules');
 const prisma = new PrismaClient();
 
 const generateAppNumber = async () => {
   const year = new Date().getFullYear();
-  const count = await prisma.application.count();
-  const num = String(count + 1).padStart(4, '0');
+  const prefix = `ARA-TSH-${year}-`;
+  const latest = await prisma.application.findFirst({
+    where: { app_number: { startsWith: prefix } },
+    orderBy: { app_number: 'desc' },
+    select: { app_number: true },
+  });
+  const latestNumber = Number.parseInt(latest?.app_number.slice(prefix.length), 10) || 0;
+  const num = String(latestNumber + 1).padStart(4, '0');
   return `ARA-TSH-${year}-${num}`;
 };
 
@@ -22,6 +30,14 @@ exports.createApplication = async (req, res) => {
   try {
     const app_number = await generateAppNumber();
     const { farmer_id } = req.body;
+    const appData = extractAppData(req.body);
+    const numericValidation = validateNonNegativeValues(appData);
+    if (!numericValidation.valid) {
+      return res.status(400).json({
+        error: numericValidation.errors[0],
+        errors: numericValidation.errors,
+      });
+    }
 
     // Fermer tanlangan bo'lsa — uning ma'lumotlarini avtomatik to'ldirish
     let farmerData = {};
@@ -48,7 +64,7 @@ exports.createApplication = async (req, res) => {
         farmer_id: farmer_id ? parseInt(farmer_id) : null,
         status: 'DRAFT',
         ...farmerData,
-        ...extractAppData(req.body)
+        ...appData
       }
     });
     res.status(201).json(application);
@@ -124,9 +140,18 @@ exports.updateApplication = async (req, res) => {
       return res.status(400).json({ error: 'Bu arizani tahrirlash mumkin emas' });
     }
 
+    const appData = extractAppData(req.body);
+    const numericValidation = validateNonNegativeValues(appData);
+    if (!numericValidation.valid) {
+      return res.status(400).json({
+        error: numericValidation.errors[0],
+        errors: numericValidation.errors,
+      });
+    }
+
     const updated = await prisma.application.update({
       where: { id: parseInt(id) },
-      data: extractAppData(req.body),
+      data: appData,
       include: { files: true }
     });
 
@@ -316,6 +341,48 @@ exports.deleteFile = async (req, res) => {
   }
 };
 
+// Foydalanuvchi qoralama yoki qaytarilgan/rad etilgan o'z arizasini o'chiradi
+exports.deleteApplication = async (req, res) => {
+  try {
+    const applicationId = parseInt(req.params.id);
+    if (!Number.isInteger(applicationId)) {
+      return res.status(400).json({ error: "Noto'g'ri ariza identifikatori" });
+    }
+
+    const application = await prisma.application.findFirst({
+      where: { id: applicationId, user_id: req.user.id },
+      include: { files: { select: { file_path: true } } },
+    });
+
+    if (!application) {
+      return res.status(404).json({ error: 'Ariza topilmadi' });
+    }
+    if (!canUserDeleteApplication(application.status)) {
+      return res.status(400).json({
+        error: "Faqat qoralama yoki qaytarilgan/rad etilgan arizani o'chirish mumkin",
+      });
+    }
+
+    await prisma.application.delete({ where: { id: applicationId } });
+
+    const uploadsRoot = path.resolve(__dirname, '../../uploads');
+    for (const file of application.files) {
+      const fullPath = path.resolve(__dirname, '../../', file.file_path);
+      if (!fullPath.startsWith(`${uploadsRoot}${path.sep}`)) continue;
+      try {
+        if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
+      } catch (fileError) {
+        console.error(`Ariza ${applicationId} faylini o'chirishda xato:`, fileError);
+      }
+    }
+
+    res.json({ message: "Ariza o'chirildi" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Arizani o'chirishda xato" });
+  }
+};
+
 // Foydalanuvchi o'z tasdiqlangan arizasini Word formatda yuklab oladi
 exports.exportMyApplicationWord = async (req, res) => {
   try {
@@ -361,6 +428,10 @@ function extractAppData(body) {
         data[f] = body[f] ? parseFloat(body[f]) : null;
       } else if (['seedling_count', 'permanent_jobs', 'seasonal_jobs'].includes(f)) {
         data[f] = body[f] ? parseInt(body[f]) : null;
+      } else if (f === 'bank_account') {
+        data[f] = String(body[f] || '').replace(/\D/g, '').slice(0, 20) || null;
+      } else if (f === 'mfo') {
+        data[f] = String(body[f] || '').replace(/\D/g, '').slice(0, 5) || null;
       } else {
         data[f] = body[f] || null;
       }

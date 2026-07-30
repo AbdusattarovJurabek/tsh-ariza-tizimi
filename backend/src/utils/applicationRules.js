@@ -35,6 +35,8 @@ const STATUS_TRANSITIONS = {
   REJECTED: [],
 };
 
+const USER_DELETABLE_STATUSES = ['DRAFT', 'HAS_ISSUES', 'REJECTED'];
+
 const FIELD_LABELS = {
   subject_name: 'Subyekt nomi',
   leader_full_name: 'Rahbar F.I.Sh.',
@@ -48,6 +50,32 @@ const FIELD_LABELS = {
 
 function canTransition(currentStatus, nextStatus) {
   return (STATUS_TRANSITIONS[currentStatus] || []).includes(nextStatus);
+}
+
+function canUserDeleteApplication(status) {
+  return USER_DELETABLE_STATUSES.includes(status);
+}
+
+function validateNonNegativeValues(application) {
+  const errors = [];
+  const fields = [
+    ['total_land_area', 'Umumiy yer maydoni'],
+    ['garden_area', "Bog' maydoni"],
+    ['seedling_count', "Ko'chat soni"],
+    ['project_amount', 'Loyiha summasi'],
+    ['permanent_jobs', "Doimiy ish o'rni"],
+    ['seasonal_jobs', "Mavsumiy ish o'rni"],
+  ];
+
+  for (const [field, label] of fields) {
+    const value = application[field];
+    if (value === null || value === undefined || value === '') continue;
+    if (!Number.isFinite(Number(value)) || Number(value) < 0) {
+      errors.push(`${label} manfiy bo'lishi mumkin emas`);
+    }
+  }
+
+  return { valid: errors.length === 0, errors };
 }
 
 function validateApplicationForSubmit(application) {
@@ -85,6 +113,9 @@ module.exports = {
   REQUIRED_APPLICATION_FIELDS,
   REQUIRED_FILE_TYPES,
   STATUS_TRANSITIONS,
+  USER_DELETABLE_STATUSES,
   canTransition,
+  canUserDeleteApplication,
+  validateNonNegativeValues,
   validateApplicationForSubmit,
 };

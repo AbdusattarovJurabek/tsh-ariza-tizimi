@@ -15,5 +15,6 @@ router.post('/:id/submit', authorize('USER'), ctrl.submitApplication);
 router.get('/:id/export/word', authorize('USER'), ctrl.exportMyApplicationWord);
 router.post('/:id/files', authorize('USER'), upload.single('file'), ctrl.uploadFile);
 router.delete('/:id/files/:fileId', authorize('USER'), ctrl.deleteFile);
+router.delete('/:id', authorize('USER'), ctrl.deleteApplication);
 
 module.exports = router;
