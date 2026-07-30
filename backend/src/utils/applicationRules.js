@@ -9,7 +9,8 @@ const REQUIRED_APPLICATION_FIELDS = [
   'seedling_count',
 ];
 
-const REQUIRED_FILE_TYPES = [
+const ALLOWED_FILE_TYPES = [
+  'LETTER',
   'COVER_LETTER',
   'LAND_DECISION',
   'LEASE_CONTRACT',
@@ -22,6 +23,11 @@ const REQUIRED_FILE_TYPES = [
   'SEEDLING_CERT',
   'SEEDLING_CONTRACT',
   'IRRIGATION_CONTRACT',
+  'OTHER'
+];
+
+const REQUIRED_FILE_TYPES = [
+  'LETTER'
 ];
 
 const STATUS_TRANSITIONS = {
@@ -112,6 +118,7 @@ function validateApplicationForSubmit(application) {
 module.exports = {
   REQUIRED_APPLICATION_FIELDS,
   REQUIRED_FILE_TYPES,
+  ALLOWED_FILE_TYPES,
   STATUS_TRANSITIONS,
   USER_DELETABLE_STATUSES,
   canTransition,

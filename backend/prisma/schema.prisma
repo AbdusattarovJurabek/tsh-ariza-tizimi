@@ -66,27 +66,37 @@ model Application {
   land_specialization       String?
   garden_area               Float?
   land_contour              String?
+  land_contours             Json?
   garden_address            String?
   location_url              String?
   qr_code                   String?
   land_decision_number      String?
   land_decision_date        String?
+  land_decisions            Json?
   lease_contract_number     String?
   lease_contract_date       String?
   registry_number           String?
+  lease_contracts           Json?
   soil_type                 String?
   soil_composition          String?
   soil_quality              String?
   soil_fertility            String?
+  soil_analysis_info        Json?
   water_supply_info         String?
+  water_conclusion_info     Json?
   weather_analysis          String?
+  weather_data_info         Json?
   scientific_recommendation String?
+  scientific_conclusion_info Json?
   fruit_type                String?
   fruit_variety             String?
   planting_scheme           String?
   seedling_count            Int?
   planting_period           String?
   water_source              String?
+  seedling_contract_info    Json?
+  irrigation_contract_info  Json?
+  seedling_cert_info        Json?
   project_amount            Float?
   permanent_jobs            Int?
   seasonal_jobs             Int?

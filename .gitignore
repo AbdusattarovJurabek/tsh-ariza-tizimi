@@ -33,3 +33,4 @@ logs/
 *.suo
 *.user
 .env
+*.dump

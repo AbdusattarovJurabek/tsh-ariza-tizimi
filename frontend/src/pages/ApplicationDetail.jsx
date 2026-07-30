@@ -231,23 +231,89 @@ export default function ApplicationDetail() {
         <Field label="Yuridik manzil" value={app.legal_address} />
         <Field label="STIR" value={app.stir} />
         <Field label="MFO" value={app.mfo} />
-        <Field label="Hisob raqam" value={app.bank_account} />
         <Field label="Bank nomi" value={app.bank_name} />
       </Section>
 
-      <Section title="2. Yer maydoni ma'lumotlari">
-        <Field label="Umumiy yer maydoni (ga)" value={app.total_land_area} />
-        <Field label="Ixtisoslik" value={app.land_specialization} />
-        <Field label="Bog' maydoni (ga)" value={app.garden_area} />
-        <Field label="Yer konturi" value={app.land_contour} />
-        <Field label="Bog' manzili" value={app.garden_address} />
-        <Field label="Qaror raqami" value={app.land_decision_number} />
-        <Field label="Qaror sanasi" value={app.land_decision_date} />
-        <Field label="Ijara shartnomasi raqami" value={app.lease_contract_number} />
-        <Field label="Shartnoma sanasi" value={app.lease_contract_date} />
-        <Field label="Reestr raqami" value={app.registry_number} />
+      <div className="card space-y-4">
+        <h3 className="font-semibold text-gray-800 pb-2 border-b text-sm">2. Yer maydoni ma'lumotlari</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <Field label="Umumiy yer maydoni (ga)" value={app.total_land_area} />
+          <Field label="Ixtisoslik" value={app.land_specialization} />
+          <Field label="Bog' maydoni (ga)" value={app.garden_area} />
+          <Field label="Bog' manzili" value={app.garden_address} />
+        </div>
+
+        {/* Konturlar */}
+        {Array.isArray(app.land_contours) && app.land_contours.length > 0 ? (
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
+            <p className="text-xs font-semibold text-gray-700 mb-2">🗺️ Yer maydoni konturlari:</p>
+            <div className="flex flex-wrap gap-2">
+              {app.land_contours.map((c, i) => (
+                <span key={i} className="bg-white px-3 py-1 rounded-lg border text-xs font-bold text-gray-800 shadow-sm">
+                  Kontur #{typeof c === 'string' ? c : (c.contour_number || i + 1)}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <Field label="Yer konturi" value={app.land_contour} />
+        )}
+
+        {/* Yer ajratish qarorlari */}
+        {Array.isArray(app.land_decisions) && app.land_decisions.length > 0 ? (
+          <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-3 space-y-2">
+            <p className="text-xs font-semibold text-blue-900">📜 Yer ajratish qarorlari:</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {app.land_decisions.map((d, i) => (
+                <div key={i} className="bg-white p-3 rounded-lg border border-blue-200 text-xs space-y-1">
+                  <p className="font-bold text-blue-800">Qaror #{i + 1}: {d.decision_number || 'Noma\'lum'} ({d.decision_date || 'sanasiz'})</p>
+                  {d.file_name && (
+                    <p className="text-green-700 font-medium">📄 Fayl: {d.file_name}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Qaror raqami" value={app.land_decision_number} />
+            <Field label="Qaror sanasi" value={app.land_decision_date} />
+          </div>
+        )}
+
+        {/* Ijara shartnomalari */}
+        {Array.isArray(app.lease_contracts) && app.lease_contracts.length > 0 ? (
+          <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3 space-y-2">
+            <p className="text-xs font-semibold text-emerald-900">📄 Ijara shartnomalari:</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {app.lease_contracts.map((c, i) => (
+                <div key={i} className="bg-white p-3 rounded-lg border border-emerald-200 text-xs space-y-1">
+                  <p className="font-bold text-emerald-800">Shartnoma #{i + 1}: {c.contract_number || 'Noma\'lum'} ({c.contract_date || 'sanasiz'})</p>
+                  {c.file_name && (
+                    <p className="text-green-700 font-medium">📄 Fayl: {c.file_name}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Ijara shartnomasi raqami" value={app.lease_contract_number} />
+            <Field label="Shartnoma sanasi" value={app.lease_contract_date} />
+          </div>
+        )}
+
+        {/* Reestr ma'lumotlari bo'limi */}
+        <div className="bg-purple-50/70 border border-purple-200 rounded-xl p-3 space-y-2">
+          <p className="text-xs font-semibold text-purple-900">📑 Reestr ma'lumotlari:</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white p-3 rounded-lg border border-purple-200">
+            <Field label="Reestr raqami" value={app.registry_number} />
+            <Field label="Reestr sanasi" value={app.registry_date} />
+          </div>
+        </div>
+
         {app.location_url && (
-          <div className="col-span-full">
+          <div className="pt-2 border-t">
             <span className="text-xs text-gray-500">Lokatsiya</span>
             <a href={app.location_url} target="_blank" rel="noreferrer"
               className="flex items-center gap-1 text-sm text-primary-600 hover:underline mt-0.5">
@@ -255,62 +321,127 @@ export default function ApplicationDetail() {
             </a>
           </div>
         )}
-      </Section>
+      </div>
 
-      <Section title="3. Agrotexnik ma'lumotlar">
-        <Field label="Tuproq tipi" value={app.soil_type} />
-        <Field label="Tuproq tarkibi" value={app.soil_composition} />
-        <Field label="Tuproq sifati" value={app.soil_quality} />
-        <Field label="Tuproq unumdorligi" value={app.soil_fertility} />
-        <div className="col-span-full">
-          <Field label="Suv ta'minlanganlik xulosasi" value={app.water_supply_info} />
+      <div className="card space-y-4">
+        <h3 className="font-semibold text-gray-800 pb-2 border-b text-sm">3. Agrotexnik ma'lumotlar va Hujjatlar</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Field label="Tuproq tipi" value={app.soil_type} />
+          <Field label="Tuproq tarkibi" value={app.soil_composition} />
+          <Field label="Tuproq sifati" value={app.soil_quality} />
+          <Field label="Tuproq unumdorligi" value={app.soil_fertility} />
         </div>
-        <div className="col-span-full">
-          <Field label="5 yillik ob-havo tahlili" value={app.weather_analysis} />
-        </div>
-        <div className="col-span-full">
-          <Field label="Ilmiy tavsiya" value={app.scientific_recommendation} />
-        </div>
-      </Section>
 
-      <Section title="4. Ko'chat va Loyiha ma'lumotlari">
-        <Field label="Meva turi" value={app.fruit_type} />
-        <Field label="Meva navi" value={app.fruit_variety} />
-        <Field label="Ekish sxemasi" value={app.planting_scheme} />
-        <Field label="Ko'chat soni (dona)" value={app.seedling_count} />
-        <Field label="Ekilish davri" value={app.planting_period} />
-        <Field label="Suv manbasi" value={app.water_source} />
-        <Field label="Loyiha summasi (so'm)" value={app.project_amount ? parseInt(app.project_amount).toLocaleString() : null} />
-        <Field label="Doimiy ish o'rni" value={app.permanent_jobs} />
-        <Field label="Mavsumiy ish o'rni" value={app.seasonal_jobs} />
-        <div className="col-span-full">
-          <Field label="Ta'minotchi korxonalar" value={app.supplier_companies} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+          {/* Tuproq tahlili */}
+          <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-3 space-y-1 text-xs">
+            <p className="font-bold text-amber-900 flex items-center gap-1">🧪 Tuproq tahlili xulosasi (Majburiy)</p>
+            <p><span className="text-gray-500">Tashkilot:</span> <span className="font-semibold text-gray-800">{app.soil_analysis_info?.org || '-'}</span></p>
+            {app.soil_analysis_info?.number && <p><span className="text-gray-500">Raqami:</span> {app.soil_analysis_info.number}</p>}
+            {app.soil_analysis_info?.date && <p><span className="text-gray-500">Sana:</span> {app.soil_analysis_info.date}</p>}
+            {app.soil_analysis_info?.file_name && <p className="text-green-700 font-medium">📄 Fayl: {app.soil_analysis_info.file_name}</p>}
+          </div>
+
+          {/* Suv ta'minoti */}
+          <div className="bg-blue-50/60 border border-blue-200 rounded-xl p-3 space-y-1 text-xs">
+            <p className="font-bold text-blue-900 flex items-center gap-1">💧 Suv ta'minoti xulosasi (Majburiy)</p>
+            <p><span className="text-gray-500">Tashkilot:</span> <span className="font-semibold text-gray-800">{app.water_conclusion_info?.org || '-'}</span></p>
+            {app.water_conclusion_info?.number && <p><span className="text-gray-500">Raqami:</span> {app.water_conclusion_info.number}</p>}
+            {app.water_conclusion_info?.date && <p><span className="text-gray-500">Sana:</span> {app.water_conclusion_info.date}</p>}
+            {app.water_conclusion_info?.file_name && <p className="text-green-700 font-medium">📄 Fayl: {app.water_conclusion_info.file_name}</p>}
+          </div>
+
+          {/* Ob-havo tahlili */}
+          <div className="bg-sky-50/60 border border-sky-200 rounded-xl p-3 space-y-1 text-xs">
+            <p className="font-bold text-sky-900 flex items-center gap-1">🌤️ Ob-havo tahlili (Majburiy)</p>
+            <p><span className="text-gray-500">Tashkilot:</span> <span className="font-semibold text-gray-800">{app.weather_data_info?.org || '-'}</span></p>
+            {app.weather_data_info?.number && <p><span className="text-gray-500">Raqami:</span> {app.weather_data_info.number}</p>}
+            {app.weather_data_info?.date && <p><span className="text-gray-500">Sana:</span> {app.weather_data_info.date}</p>}
+            {app.weather_data_info?.file_name && <p className="text-green-700 font-medium">📄 Fayl: {app.weather_data_info.file_name}</p>}
+          </div>
+
+          {/* Ilmiy tavsiya */}
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-1 text-xs">
+            <p className="font-bold text-gray-700 flex items-center gap-1">🔬 Ilmiy tavsiya (Ixtiyoriy)</p>
+            <p><span className="text-gray-500">Tashkilot:</span> <span className="font-semibold text-gray-800">{app.scientific_conclusion_info?.org || '-'}</span></p>
+            {app.scientific_conclusion_info?.number && <p><span className="text-gray-500">Raqami:</span> {app.scientific_conclusion_info.number}</p>}
+            {app.scientific_conclusion_info?.date && <p><span className="text-gray-500">Sana:</span> {app.scientific_conclusion_info.date}</p>}
+            {app.scientific_conclusion_info?.file_name && <p className="text-green-700 font-medium">📄 Fayl: {app.scientific_conclusion_info.file_name}</p>}
+          </div>
         </div>
-      </Section>
+      </div>
+
+      <div className="card space-y-4">
+        <h3 className="font-semibold text-gray-800 pb-2 border-b text-sm">4. Ko'chat va Loyiha ma'lumotlari</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <Field label="Meva turi" value={app.fruit_type} />
+          <Field label="Meva navi" value={app.fruit_variety} />
+          <Field label="Ekish sxemasi" value={app.planting_scheme} />
+          <Field label="Ko'chat soni (dona)" value={app.seedling_count} />
+          <Field label="Ekilish davri" value={app.planting_period} />
+          <Field label="Suv manbasi" value={app.water_source} />
+          <Field label="Loyiha summasi (so'm)" value={app.project_amount ? parseInt(app.project_amount).toLocaleString() : null} />
+          <Field label="Doimiy ish o'rni" value={app.permanent_jobs} />
+          <Field label="Mavsumiy ish o'rni" value={app.seasonal_jobs} />
+        </div>
+
+        {/* Structured Loyiha/Ko'chat Hujjatlari */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+          <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-3 space-y-1 text-xs">
+            <p className="font-bold text-emerald-900 flex items-center gap-1">🌱 Ko'chat shartnomasi (Ixtiyoriy)</p>
+            <p><span className="text-gray-500">Tashkilot:</span> {app.seedling_contract_info?.org || '-'}</p>
+            {app.seedling_contract_info?.number && <p><span className="text-gray-500">Nomer:</span> {app.seedling_contract_info.number}</p>}
+            {app.seedling_contract_info?.date && <p><span className="text-gray-500">Sana:</span> {app.seedling_contract_info.date}</p>}
+            {app.seedling_contract_info?.file_name && <p className="text-green-700 font-medium">📄 Fayl: {app.seedling_contract_info.file_name}</p>}
+          </div>
+
+          <div className="bg-cyan-50/60 border border-cyan-200 rounded-xl p-3 space-y-1 text-xs">
+            <p className="font-bold text-cyan-900 flex items-center gap-1">💧 Tomchilatib sug'orish (Ixtiyoriy)</p>
+            <p><span className="text-gray-500">Tashkilot:</span> {app.irrigation_contract_info?.org || '-'}</p>
+            {app.irrigation_contract_info?.number && <p><span className="text-gray-500">Nomer:</span> {app.irrigation_contract_info.number}</p>}
+            {app.irrigation_contract_info?.date && <p><span className="text-gray-500">Sana:</span> {app.irrigation_contract_info.date}</p>}
+            {app.irrigation_contract_info?.file_name && <p className="text-green-700 font-medium">📄 Fayl: {app.irrigation_contract_info.file_name}</p>}
+          </div>
+
+          <div className="bg-indigo-50/60 border border-indigo-200 rounded-xl p-3 space-y-1 text-xs">
+            <p className="font-bold text-indigo-900 flex items-center gap-1">📜 Muvofiqlik sertifikati (Ixtiyoriy)</p>
+            <p><span className="text-gray-500">Tashkilot:</span> {app.seedling_cert_info?.org || '-'}</p>
+            {app.seedling_cert_info?.number && <p><span className="text-gray-500">Nomer:</span> {app.seedling_cert_info.number}</p>}
+            {app.seedling_cert_info?.date && <p><span className="text-gray-500">Sana:</span> {app.seedling_cert_info.date}</p>}
+            {app.seedling_cert_info?.file_name && <p className="text-green-700 font-medium">📄 Fayl: {app.seedling_cert_info.file_name}</p>}
+          </div>
+        </div>
+
+        {app.supplier_companies && (
+          <div className="pt-2 border-t">
+            <Field label="Ta'minotchi korxonalar" value={app.supplier_companies} />
+          </div>
+        )}
+      </div>
 
       {/* Files */}
       <div className="card">
-        <h3 className="font-semibold text-gray-800 mb-4 pb-2 border-b text-sm">5. Ilova qilingan hujjatlar</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {Object.entries(FILE_TYPE_LABELS).map(([type, label]) => {
-            const file = app.files?.find(f => f.file_type === type);
-            return (
-              <div key={type} className={`flex items-center gap-3 p-3 rounded-lg border ${file ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
-                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${file ? 'bg-green-500' : 'bg-gray-300'}`} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium text-gray-700 truncate">{label}</p>
-                  {file && (
-                    <button type="button"
-                      onClick={() => openProtectedFile(app.id, file).catch(() => toast.error('Faylni ochishda xato'))}
-                      className="text-xs text-primary-600 hover:underline truncate block text-left">
-                      {file.file_name}
-                    </button>
-                  )}
-                </div>
+        <h3 className="font-semibold text-gray-800 mb-4 pb-2 border-b text-sm">5. Ilova qilingan hujjat (Aloqa xati)</h3>
+        {(() => {
+          const file = app.files?.find(f => f.file_type === 'LETTER');
+          return (
+            <div className={`flex items-center gap-3 p-4 rounded-xl border ${file ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+              <div className={`w-3 h-3 rounded-full flex-shrink-0 ${file ? 'bg-green-500' : 'bg-gray-300'}`} />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-gray-800">1. Aloqa xati</p>
+                {file ? (
+                  <button type="button"
+                    onClick={() => openProtectedFile(app.id, file).catch(() => toast.error('Faylni ochishda xato'))}
+                    className="text-xs text-primary-600 hover:underline truncate block text-left font-medium mt-0.5">
+                    📄 {file.file_name}
+                  </button>
+                ) : (
+                  <span className="text-xs text-gray-400 italic">Aloqa xati yuklanmagan</span>
+                )}
               </div>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Status history */}

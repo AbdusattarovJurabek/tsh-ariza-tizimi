@@ -5,6 +5,7 @@ const { generateApplicationWord } = require('../utils/wordExport');
 const { validateUploadedFile } = require('../middleware/upload');
 const {
   REQUIRED_FILE_TYPES,
+  ALLOWED_FILE_TYPES,
   canTransition,
   canUserDeleteApplication,
   validateNonNegativeValues,
@@ -237,7 +238,8 @@ exports.uploadFile = async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ error: 'Fayl tanlanmadi' });
     }
-    if (!REQUIRED_FILE_TYPES.includes(file_type)) {
+    const allowedTypes = ALLOWED_FILE_TYPES || REQUIRED_FILE_TYPES;
+    if (file_type && !allowedTypes.includes(file_type)) {
       fs.unlinkSync(req.file.path);
       return res.status(400).json({ error: 'Noto‘g‘ri hujjat turi' });
     }
@@ -408,16 +410,27 @@ exports.exportMyApplicationWord = async (req, res) => {
   }
 };
 
+const { getBankNameByMFO } = require('../utils/mfoHelper');
+
 function extractAppData(body) {
+  const jsonFields = [
+    'land_contours', 'land_decisions', 'lease_contracts',
+    'soil_analysis_info', 'water_conclusion_info', 'weather_data_info',
+    'scientific_conclusion_info', 'seedling_contract_info',
+    'irrigation_contract_info', 'seedling_cert_info'
+  ];
+
   const fields = [
     'subject_name', 'leader_full_name', 'legal_address', 'stir', 'mfo',
     'bank_account', 'bank_name', 'total_land_area', 'land_specialization',
-    'garden_area', 'land_contour', 'garden_address', 'location_url', 'qr_code',
-    'land_decision_number', 'land_decision_date', 'lease_contract_number',
-    'lease_contract_date', 'registry_number', 'soil_type', 'soil_composition',
-    'soil_quality', 'soil_fertility', 'water_supply_info', 'weather_analysis',
-    'scientific_recommendation', 'fruit_type', 'fruit_variety', 'planting_scheme',
-    'seedling_count', 'planting_period', 'water_source', 'project_amount',
+    'garden_area', 'land_contour', 'land_contours', 'garden_address', 'location_url', 'qr_code',
+    'land_decision_number', 'land_decision_date', 'land_decisions', 'lease_contract_number',
+    'lease_contract_date', 'registry_number', 'lease_contracts', 'soil_type', 'soil_composition',
+    'soil_quality', 'soil_fertility', 'water_supply_info', 'water_conclusion_info',
+    'weather_analysis', 'weather_data_info', 'scientific_recommendation', 'scientific_conclusion_info',
+    'soil_analysis_info', 'fruit_type', 'fruit_variety', 'planting_scheme',
+    'seedling_count', 'planting_period', 'water_source', 'seedling_contract_info',
+    'irrigation_contract_info', 'seedling_cert_info', 'project_amount',
     'permanent_jobs', 'seasonal_jobs', 'supplier_companies'
   ];
 
@@ -428,10 +441,24 @@ function extractAppData(body) {
         data[f] = body[f] ? parseFloat(body[f]) : null;
       } else if (['seedling_count', 'permanent_jobs', 'seasonal_jobs'].includes(f)) {
         data[f] = body[f] ? parseInt(body[f]) : null;
+      } else if (jsonFields.includes(f)) {
+        if (typeof body[f] === 'string') {
+          try {
+            data[f] = JSON.parse(body[f]);
+          } catch {
+            data[f] = null;
+          }
+        } else {
+          data[f] = body[f] || null;
+        }
       } else if (f === 'bank_account') {
         data[f] = String(body[f] || '').replace(/\D/g, '').slice(0, 20) || null;
       } else if (f === 'mfo') {
         data[f] = String(body[f] || '').replace(/\D/g, '').slice(0, 5) || null;
+        if (data[f]) {
+          const autoBank = getBankNameByMFO(data[f]);
+          if (autoBank) data['bank_name'] = autoBank;
+        }
       } else {
         data[f] = body[f] || null;
       }

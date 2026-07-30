@@ -153,3 +153,66 @@ export const FRUIT_TYPES = [
   'Anjir', 'Behi', 'Uzum', 'Lavlagi', 'Limon', 'Mandarin',
   'Bodom', 'Yong\'oq', 'Pistа', 'Qovun', 'Tarvuz', 'Boshqa'
 ];
+
+export const LAND_SPECIALIZATIONS = [
+  'Bog\'dorchilik',
+  'Uzumchilik',
+  'Intensiv bog\'dorchilik',
+  'Ko\'chatchilik',
+  'Sabzavotchilik',
+  'Polizchilik',
+  'G\'allachilik',
+  'Paxtachilik',
+  'Chorvachilik',
+  'Issiqxona xo\'jaligi',
+  'Boshqa'
+];
+
+export const SOIL_ANALYSIS_ORGS = [
+  'Tuproqshunoslik va agrokimyoviy tadqiqotlar instituti',
+  '"Tuproq sifati va tahlili" DUK',
+  'Viloyat Agrokimyo stansiyasi',
+  'Boshqa'
+];
+
+export const WATER_SUPPLY_ORGS = [
+  'Suv xo\'jaligi vazirligi tuman bo\'limi',
+  '"Suvchi" DUK',
+  'Irrigatsiya tizimi havza boshqarmasi',
+  'Boshqa'
+];
+
+export const WEATHER_DATA_ORGS = [
+  'Gidrometeorologiya xizmati agentligi (O\'zgidromet)',
+  'Viloyat Gidrometeorologiya boshqarmasi',
+  'Boshqa'
+];
+
+export const SCIENTIFIC_ORGS = [
+  'Akademik M.Mirzayev nomidagi Bog\'dorchilik, uzumchilik va vinochilik ITI',
+  'O\'zbekiston Qishloq xo\'jaligi ilmiy-ishlab chiqarish markazi',
+  'Toshkent davlat agrar universiteti',
+  'Boshqa'
+];
+
+export const PLANTING_SCHEMES = [
+  '3x2m',
+  '4x2m',
+  '4x3m',
+  '5x3m',
+  '5x4m',
+  '6x4m',
+  '6x5m',
+  '7x5m',
+  '8x6m',
+  'Boshqa'
+];
+
+export const WATER_SOURCES = [
+  'Kanal',
+  'Quduq (Artezian)',
+  'Daryo / Soy',
+  'Suv ombori',
+  'Nasos stansiyasi',
+  'Boshqa'
+];

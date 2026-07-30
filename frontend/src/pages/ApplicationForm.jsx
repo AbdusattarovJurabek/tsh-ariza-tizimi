@@ -7,8 +7,13 @@ import {
   CheckCircle, User, MapPin, Leaf, Briefcase, Paperclip, Eye
 } from 'lucide-react';
 import { applicationAPI, farmerAPI } from '../services/api';
-import { FRUIT_TYPES, UZBEKISTAN_REGIONS, FILE_TYPE_LABELS } from '../utils/constants';
+import {
+  FRUIT_TYPES, UZBEKISTAN_REGIONS, FILE_TYPE_LABELS, LAND_SPECIALIZATIONS,
+  SOIL_ANALYSIS_ORGS, WATER_SUPPLY_ORGS, WEATHER_DATA_ORGS, SCIENTIFIC_ORGS,
+  PLANTING_SCHEMES, WATER_SOURCES
+} from '../utils/constants';
 import { UZBEKISTAN_BANKS } from '../utils/banks';
+import { getBankNameByMFO } from '../utils/mfoData';
 
 const STEPS = [
   { id: 1, label: "Subyekt ma'lumotlari", icon: User },
@@ -19,7 +24,9 @@ const STEPS = [
   { id: 6, label: "Tekshirish", icon: Eye },
 ];
 
-const FILE_TYPES = Object.entries(FILE_TYPE_LABELS);
+const FILE_TYPES = [
+  ['LETTER', '1. Aloqa xati']
+];
 const LOOKUP_TIMEOUT_SECONDS = 10;
 const SORTED_UZBEKISTAN_BANKS = [...UZBEKISTAN_BANKS]
   .sort((a, b) => a.localeCompare(b, 'uz'));
@@ -63,6 +70,89 @@ const TextareaField = ({ label, required, ...props }) => (
   </div>
 );
 
+const StructDocBlock = ({
+  title,
+  required,
+  icon,
+  orgList,
+  data = {},
+  onChange,
+  onFileUpload,
+  fileType,
+  badgeText
+}) => (
+  <div className={`p-4 rounded-xl border space-y-3 bg-white shadow-sm ${required ? 'border-amber-300 bg-amber-50/20' : 'border-gray-200'}`}>
+    <div className="flex items-center justify-between border-b pb-2">
+      <h4 className="font-semibold text-gray-800 text-sm flex items-center gap-2">
+        <span>{icon || '📄'}</span> {title} {required ? <span className="text-red-500 font-bold">* (Majburiy)</span> : <span className="text-gray-400 font-normal text-xs">(Ixtiyoriy)</span>}
+      </h4>
+      {badgeText && <span className="text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-600 font-medium">{badgeText}</span>}
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div>
+        <label className="block text-xs font-semibold text-gray-700 mb-1">
+          Tashkilot {required && <span className="text-red-500">*</span>}
+        </label>
+        {orgList ? (
+          <select
+            className="input-field text-sm"
+            value={data?.org || ''}
+            onChange={(e) => onChange('org', e.target.value)}
+          >
+            <option value="">Tashkilotni tanlang...</option>
+            {orgList.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        ) : (
+          <input
+            className="input-field text-sm"
+            placeholder="Tashkilot nomi"
+            value={data?.org || ''}
+            onChange={(e) => onChange('org', e.target.value)}
+          />
+        )}
+      </div>
+
+      <div>
+        <label className="block text-xs font-semibold text-gray-700 mb-1">Hujjat / Shartnoma raqami</label>
+        <input
+          className="input-field text-sm"
+          placeholder="Raqami"
+          value={data?.number || ''}
+          onChange={(e) => onChange('number', e.target.value)}
+        />
+      </div>
+
+      <div>
+        <label className="block text-xs font-semibold text-gray-700 mb-1">Berilgan sana / Kuni</label>
+        <input
+          type="date"
+          className="input-field text-sm"
+          value={data?.date || ''}
+          onChange={(e) => onChange('date', e.target.value)}
+        />
+      </div>
+    </div>
+
+    <div className="pt-2 border-t border-gray-100 flex items-center gap-3">
+      <label className="text-xs font-semibold text-gray-700 whitespace-nowrap">
+        📄 PDF fayli:
+      </label>
+      <input
+        type="file"
+        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+        onChange={(e) => onFileUpload(e.target.files[0], fileType)}
+        className="text-xs text-gray-500 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 cursor-pointer"
+      />
+      {data?.file_name && (
+        <span className="text-xs text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 rounded-md flex items-center gap-1">
+          ✅ {data.file_name}
+        </span>
+      )}
+    </div>
+  </div>
+);
+
 export default function ApplicationForm() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -94,6 +184,16 @@ export default function ApplicationForm() {
     land_contour: '', garden_address: '', location_url: '', qr_code: '',
     land_decision_number: '', land_decision_date: '', lease_contract_number: '',
     lease_contract_date: '', registry_number: '',
+    land_contours: [{ contour_number: '', area: '' }],
+    land_decisions: [{ decision_number: '', decision_date: '', file_name: '', file_path: '', file_id: null }],
+    lease_contracts: [{ contract_number: '', contract_date: '', registry_number: '', registry_date: '', file_name: '', file_path: '', file_id: null }],
+    soil_analysis_info: { org: '', number: '', date: '', file_name: '', file_path: '' },
+    water_conclusion_info: { org: '', number: '', date: '', file_name: '', file_path: '' },
+    weather_data_info: { org: '', number: '', date: '', file_name: '', file_path: '' },
+    scientific_conclusion_info: { org: '', number: '', date: '', file_name: '', file_path: '' },
+    seedling_contract_info: { org: '', number: '', date: '', file_name: '', file_path: '' },
+    irrigation_contract_info: { org: '', number: '', date: '', file_name: '', file_path: '' },
+    seedling_cert_info: { org: '', number: '', date: '', file_name: '', file_path: '' },
     soil_type: '', soil_composition: '', soil_quality: '', soil_fertility: '',
     water_supply_info: '', weather_analysis: '', scientific_recommendation: '',
     fruit_type: '', fruit_variety: '', planting_scheme: '',
@@ -116,7 +216,13 @@ export default function ApplicationForm() {
         const data = res.data;
         const newForm = {};
         Object.keys(form).forEach(k => {
-          newForm[k] = data[k] !== null && data[k] !== undefined ? String(data[k]) : '';
+          if (['land_contours', 'land_decisions', 'lease_contracts'].includes(k)) {
+            newForm[k] = Array.isArray(data[k]) && data[k].length > 0 ? data[k] : form[k];
+          } else if (['soil_analysis_info', 'water_conclusion_info', 'weather_data_info', 'scientific_conclusion_info', 'seedling_contract_info', 'irrigation_contract_info', 'seedling_cert_info'].includes(k)) {
+            newForm[k] = data[k] && typeof data[k] === 'object' ? data[k] : form[k];
+          } else {
+            newForm[k] = data[k] !== null && data[k] !== undefined ? String(data[k]) : '';
+          }
         });
         setForm(newForm);
         setFiles(data.files || []);
@@ -125,6 +231,126 @@ export default function ApplicationForm() {
       }).catch(() => toast.error('Arizani yuklashda xato'));
     }
   }, [id]);
+
+  const updateStructDoc = (docKey, field, val) => {
+    setForm(prev => ({
+      ...prev,
+      [docKey]: { ...(prev[docKey] || {}), [field]: val }
+    }));
+  };
+
+  const handleStructDocFileUpload = async (file, docKey, fileType) => {
+    if (!file) return;
+    const targetAppId = appId || await saveData(false);
+    if (!targetAppId) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('file_type', fileType);
+    try {
+      const res = await applicationAPI.uploadFile(targetAppId, formData);
+      setFiles(prev => [...prev.filter(f => f.file_type !== fileType), res.data]);
+      updateStructDoc(docKey, 'file_name', res.data.file_name);
+      updateStructDoc(docKey, 'file_path', res.data.file_path);
+      toast.success('Hujjat yuklandi');
+    } catch {
+      toast.error('Fayl yuklashda xato');
+    }
+  };
+
+  const handleMfoChange = (e) => {
+    const val = e.target.value.replace(/\D/g, '').slice(0, 5);
+    const autoBank = getBankNameByMFO(val);
+    setForm(prev => ({
+      ...prev,
+      mfo: val,
+      bank_name: autoBank || prev.bank_name
+    }));
+  };
+
+  const addContour = () => {
+    setForm(prev => ({
+      ...prev,
+      land_contours: [...(prev.land_contours || []), { contour_number: '', area: '' }]
+    }));
+  };
+  const updateContour = (index, field, val) => {
+    setForm(prev => {
+      const list = [...(prev.land_contours || [])];
+      list[index] = { ...list[index], [field]: val };
+      return { ...prev, land_contours: list };
+    });
+  };
+  const removeContour = (index) => {
+    setForm(prev => {
+      const list = (prev.land_contours || []).filter((_, i) => i !== index);
+      return { ...prev, land_contours: list.length > 0 ? list : [{ contour_number: '', area: '' }] };
+    });
+  };
+
+  const addLandDecision = () => {
+    setForm(prev => ({
+      ...prev,
+      land_decisions: [...(prev.land_decisions || []), { decision_number: '', decision_date: '', file_name: '', file_path: '', file_id: null }]
+    }));
+  };
+  const updateLandDecision = (index, field, val) => {
+    setForm(prev => {
+      const list = [...(prev.land_decisions || [])];
+      list[index] = { ...list[index], [field]: val };
+      return { ...prev, land_decisions: list };
+    });
+  };
+  const removeLandDecision = (index) => {
+    setForm(prev => {
+      const list = (prev.land_decisions || []).filter((_, i) => i !== index);
+      return { ...prev, land_decisions: list.length > 0 ? list : [{ decision_number: '', decision_date: '', file_name: '', file_path: '', file_id: null }] };
+    });
+  };
+
+  const addLeaseContract = () => {
+    setForm(prev => ({
+      ...prev,
+      lease_contracts: [...(prev.lease_contracts || []), { contract_number: '', contract_date: '', registry_number: '', registry_date: '', file_name: '', file_path: '', file_id: null }]
+    }));
+  };
+  const updateLeaseContract = (index, field, val) => {
+    setForm(prev => {
+      const list = [...(prev.lease_contracts || [])];
+      list[index] = { ...list[index], [field]: val };
+      return { ...prev, lease_contracts: list };
+    });
+  };
+  const removeLeaseContract = (index) => {
+    setForm(prev => {
+      const list = (prev.lease_contracts || []).filter((_, i) => i !== index);
+      return { ...prev, lease_contracts: list.length > 0 ? list : [{ contract_number: '', contract_date: '', registry_number: '', registry_date: '', file_name: '', file_path: '', file_id: null }] };
+    });
+  };
+
+  const handleInlineFileUpload = async (file, fileType, itemType, index) => {
+    if (!file) return;
+    const targetAppId = appId || await saveData(false);
+    if (!targetAppId) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('file_type', fileType);
+    try {
+      const res = await applicationAPI.uploadFile(targetAppId, formData);
+      setFiles(prev => [...prev.filter(f => f.id !== res.data.id), res.data]);
+      if (itemType === 'land_decision') {
+        updateLandDecision(index, 'file_name', res.data.file_name);
+        updateLandDecision(index, 'file_path', res.data.file_path);
+        updateLandDecision(index, 'file_id', res.data.id);
+      } else if (itemType === 'lease_contract') {
+        updateLeaseContract(index, 'file_name', res.data.file_name);
+        updateLeaseContract(index, 'file_path', res.data.file_path);
+        updateLeaseContract(index, 'file_id', res.data.id);
+      }
+      toast.success('Fayl muvaffaqiyatli yuklandi');
+    } catch (err) {
+      toast.error('Fayl yuklashda xato');
+    }
+  };
 
   // Fermer topilganda avtomatik to'ldirish va qulflash
   const applyFarmer = (farmer) => {
@@ -272,10 +498,21 @@ export default function ApplicationForm() {
     if (form.total_land_area !== '' && Number(form.total_land_area) < 0) {
       e.total_land_area = "Manfiy bo'lishi mumkin emas";
     }
+    if (!form.land_specialization) {
+      e.land_specialization = 'Majburiy maydon';
+    }
     if (!form.garden_area || Number(form.garden_area) <= 0) {
       e.garden_area = "0 dan katta bo'lishi kerak";
     }
     if (!form.garden_address) e.garden_address = 'Majburiy maydon';
+    return e;
+  };
+
+  const validateStep3 = () => {
+    const e = {};
+    if (!form.soil_analysis_info?.org) e.soil_analysis_org = 'Tashkilot tanlanishi shart';
+    if (!form.water_conclusion_info?.org) e.water_conclusion_org = 'Tashkilot tanlanishi shart';
+    if (!form.weather_data_info?.org) e.weather_data_org = 'Tashkilot tanlanishi shart';
     return e;
   };
 
@@ -312,6 +549,7 @@ export default function ApplicationForm() {
     let e = {};
     if (step === 1) e = validateStep1();
     if (step === 2) e = validateStep2();
+    if (step === 3) e = validateStep3();
     if (step === 4) e = validateStep4();
 
     if (Object.keys(e).length > 0) {
@@ -320,9 +558,11 @@ export default function ApplicationForm() {
       return;
     }
 
-    await saveData(false);
-    setStep(s => Math.min(s + 1, 6));
-    window.scrollTo(0, 0);
+    const savedId = await saveData(false);
+    if (savedId) {
+      setStep(s => Math.min(s + 1, 6));
+      window.scrollTo(0, 0);
+    }
   };
 
   const handlePrev = () => {
@@ -339,10 +579,10 @@ export default function ApplicationForm() {
       toast.error("Majburiy maydonlarni to'ldiring");
       return;
     }
-    const missingFiles = FILE_TYPES.filter(([type]) => !files.some(file => file.file_type === type));
-    if (missingFiles.length > 0) {
+    const hasLetter = files.some(file => file.file_type === 'LETTER');
+    if (!hasLetter) {
       setStep(5);
-      toast.error(`${missingFiles.length} ta majburiy hujjat yuklanmagan`);
+      toast.error("Aloqa xati fayli yuklanmagan");
       return;
     }
     setShowConfirm(true);
@@ -598,30 +838,33 @@ export default function ApplicationForm() {
               </div>
             </div>
 
-            {/* ③ Qo'lda kiritiladigan rekvizitlar */}
+            {/* ③ Qo'lda kiritiladigan rekvizitlar (MFO orqali Bank nomi avtomatik topiladi) */}
             <div className="pt-2 border-t">
-              <h4 className="font-medium text-gray-700 mb-3 text-sm">Bank rekvizitlari</h4>
+              <h4 className="font-medium text-gray-700 mb-3 text-sm">Bank rekvizitlari (MFO)</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <InputField label="MFO" value={form.mfo} onChange={set('mfo')} placeholder="5 ta raqam" maxLength={5} />
-                <InputField
-                  label="Hisob raqam"
-                  value={formatBankAccount(form.bank_account)}
-                  onChange={setBankAccount}
-                  placeholder="000 000 000 000 000 000 00"
-                  inputMode="numeric"
-                  maxLength={26}
-                />
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Bank nomi</label>
-                  <select className="input-field" value={form.bank_name} onChange={set('bank_name')}>
-                    <option value="">Bankni tanlang...</option>
-                    {form.bank_name && !UZBEKISTAN_BANKS.includes(form.bank_name) && (
-                      <option value={form.bank_name}>{form.bank_name}</option>
-                    )}
-                    {SORTED_UZBEKISTAN_BANKS.map(bank => (
-                      <option key={bank} value={bank}>{bank}</option>
-                    ))}
-                  </select>
+                  <InputField
+                    label="MFO kodi"
+                    value={form.mfo}
+                    onChange={handleMfoChange}
+                    placeholder="5 ta raqam (masalan: 00901)"
+                    maxLength={5}
+                  />
+                  {form.mfo && getBankNameByMFO(form.mfo) && (
+                    <p className="text-xs text-green-600 font-medium mt-1">
+                      ✅ {getBankNameByMFO(form.mfo)}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Bank nomi (Avtomatik)</label>
+                  <input
+                    {...AUTOFILL_OFF_PROPS}
+                    className="input-field bg-gray-50 text-gray-700"
+                    value={form.bank_name || ''}
+                    onChange={set('bank_name')}
+                    placeholder="MFO kiritilganda avtomatik to'ldiriladi"
+                  />
                 </div>
               </div>
             </div>
@@ -630,8 +873,9 @@ export default function ApplicationForm() {
 
       case 2:
         return (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <h3 className="text-base font-semibold text-gray-800 pb-2 border-b">Yer maydoni ma'lumotlari</h3>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <InputField
                 label="Umumiy yer maydoni (ga)"
@@ -643,7 +887,24 @@ export default function ApplicationForm() {
                 placeholder="0.00"
                 error={errors.total_land_area}
               />
-              <InputField label="Ixtisoslik" value={form.land_specialization} onChange={set('land_specialization')} placeholder="Yer uchastkasi ixtisosligi" />
+              
+              {/* Ixtisoslik — Dropdown tanlov */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Ixtisoslik <span className="text-red-500">*</span>
+                </label>
+                <select
+                  className="input-field"
+                  value={form.land_specialization}
+                  onChange={set('land_specialization')}
+                >
+                  <option value="">Ixtisoslikni tanlang...</option>
+                  {LAND_SPECIALIZATIONS.map(spec => (
+                    <option key={spec} value={spec}>{spec}</option>
+                  ))}
+                </select>
+              </div>
+
               <InputField
                 label="Bog' maydoni (ga)"
                 required
@@ -655,9 +916,50 @@ export default function ApplicationForm() {
                 placeholder="0.00"
                 error={errors.garden_area}
               />
-              <InputField label="Yer maydoni konturi" value={form.land_contour} onChange={set('land_contour')} placeholder="Kontur raqami" />
             </div>
+
+            {/* Konturlar (Super Ixcham va Kichik dizayn) */}
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
+                  🗺️ Yer konturlari
+                </label>
+                <button
+                  type="button"
+                  onClick={addContour}
+                  className="text-xs bg-white text-primary-700 hover:bg-primary-50 font-medium px-2.5 py-1 rounded border border-primary-200 shadow-sm transition-colors flex items-center gap-1"
+                >
+                  + Kontur qo'shish
+                </button>
+              </div>
+
+              <div className="flex flex-wrap gap-2 items-center">
+                {(form.land_contours || []).map((contour, idx) => (
+                  <div key={idx} className="flex items-center bg-white border border-gray-300 rounded-md px-2 py-1 shadow-sm text-xs">
+                    <span className="text-[11px] font-bold text-gray-400 mr-1.5">#{idx + 1}</span>
+                    <input
+                      className="w-20 bg-transparent border-0 p-0 text-xs font-semibold text-gray-800 focus:outline-none focus:ring-0"
+                      placeholder="14a"
+                      value={typeof contour === 'string' ? contour : (contour.contour_number || '')}
+                      onChange={(e) => updateContour(idx, 'contour_number', e.target.value)}
+                    />
+                    {(form.land_contours || []).length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeContour(idx)}
+                        className="text-gray-400 hover:text-red-500 ml-1.5 p-0.5 rounded transition-colors"
+                        title="O'chirish"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <TextareaField label="Bog' tashkil qilinadigan manzil" required value={form.garden_address} onChange={set('garden_address')} placeholder="To'liq manzil" />
+
             {/* Lokatsiya + QR kod */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Lokatsiya havolasi (Google Maps)</label>
@@ -676,7 +978,6 @@ export default function ApplicationForm() {
                     </a>
                   )}
                 </div>
-                {/* QR kod preview */}
                 {form.location_url && form.location_url.startsWith('http') && (
                   <div className="flex-shrink-0 flex flex-col items-center gap-1">
                     <img
@@ -689,37 +990,277 @@ export default function ApplicationForm() {
                 )}
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <InputField label="Yer ajratish qarori raqami" value={form.land_decision_number} onChange={set('land_decision_number')} placeholder="Qaror raqami" />
-              <InputField label="Qaror sanasi" value={form.land_decision_date} onChange={set('land_decision_date')} type="date" />
-              <InputField label="Ijara shartnomasi raqami" value={form.lease_contract_number} onChange={set('lease_contract_number')} placeholder="Shartnoma raqami" />
-              <InputField label="Shartnoma sanasi" value={form.lease_contract_date} onChange={set('lease_contract_date')} type="date" />
-              <InputField label="Reestr raqami" value={form.registry_number} onChange={set('registry_number')} placeholder="Reestr raqami" />
+
+            {/* Yer ajratish qarorlari ro'yxati (Bir nechta bo'lishi mumkin + inline PDF yuklash) */}
+            <div className="bg-blue-50/50 border border-blue-200 rounded-xl p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-semibold text-blue-900 text-sm flex items-center gap-2">
+                    📜 Yer ajratish qarorlari
+                  </h4>
+                  <p className="text-xs text-blue-600">Qaror ma'lumotlari va uning PDF fayli shu betda yuklanadi</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={addLandDecision}
+                  className="text-xs bg-blue-600 text-white hover:bg-blue-700 font-medium px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+                >
+                  + Yangi qaror qo'shish
+                </button>
+              </div>
+
+              {(form.land_decisions || []).map((dec, idx) => (
+                <div key={idx} className="bg-white p-4 rounded-xl border border-blue-200 space-y-3 relative shadow-sm">
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <span className="text-xs font-bold text-blue-700">Qaror #{idx + 1}</span>
+                    {(form.land_decisions || []).length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeLandDecision(idx)}
+                        className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1 font-medium"
+                      >
+                        <X className="w-4 h-4" /> O'chirish
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <InputField
+                      label="Qaror raqami"
+                      value={dec.decision_number || ''}
+                      onChange={(e) => updateLandDecision(idx, 'decision_number', e.target.value)}
+                      placeholder="Qaror raqami"
+                    />
+                    <InputField
+                      label="Qaror sanasi"
+                      type="date"
+                      value={dec.decision_date || ''}
+                      onChange={(e) => updateLandDecision(idx, 'decision_date', e.target.value)}
+                    />
+                  </div>
+                  {/* Inline PDF File Upload */}
+                  <div className="pt-2 border-t border-gray-100">
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      📄 Qaror PDF fayli
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="file"
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                        onChange={(e) => handleInlineFileUpload(e.target.files[0], 'LAND_DECISION', 'land_decision', idx)}
+                        className="text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                      />
+                      {dec.file_name && (
+                        <span className="text-xs text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 rounded-md flex items-center gap-1">
+                          ✅ {dec.file_name}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Ijara shartnomalari ro'yxati (Bir nechta bo'lishi mumkin + inline PDF yuklash) */}
+            <div className="bg-emerald-50/50 border border-emerald-200 rounded-xl p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-semibold text-emerald-900 text-sm flex items-center gap-2">
+                    📄 Ijara shartnomalari
+                  </h4>
+                  <p className="text-xs text-emerald-600">Shartnoma ma'lumotlari va uning PDF fayli shu betda yuklanadi</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={addLeaseContract}
+                  className="text-xs bg-emerald-600 text-white hover:bg-emerald-700 font-medium px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+                >
+                  + Yangi shartnoma qo'shish
+                </button>
+              </div>
+
+              {(form.lease_contracts || []).map((contract, idx) => (
+                <div key={idx} className="bg-white p-4 rounded-xl border border-emerald-200 space-y-3 relative shadow-sm">
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <span className="text-xs font-bold text-emerald-700">Shartnoma #{idx + 1}</span>
+                    {(form.lease_contracts || []).length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeLeaseContract(idx)}
+                        className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1 font-medium"
+                      >
+                        <X className="w-4 h-4" /> O'chirish
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <InputField
+                      label="Shartnoma raqami"
+                      value={contract.contract_number || ''}
+                      onChange={(e) => updateLeaseContract(idx, 'contract_number', e.target.value)}
+                      placeholder="Shartnoma raqami"
+                    />
+                    <InputField
+                      label="Shartnoma sanasi"
+                      type="date"
+                      value={contract.contract_date || ''}
+                      onChange={(e) => updateLeaseContract(idx, 'contract_date', e.target.value)}
+                    />
+                  </div>
+                  {/* Inline PDF File Upload */}
+                  <div className="pt-2 border-t border-gray-100">
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      📄 Shartnoma PDF fayli
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="file"
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                        onChange={(e) => handleInlineFileUpload(e.target.files[0], 'LEASE_CONTRACT', 'lease_contract', idx)}
+                        className="text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer"
+                      />
+                      {contract.file_name && (
+                        <span className="text-xs text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 rounded-md flex items-center gap-1">
+                          ✅ {contract.file_name}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* ALOHIDA BO'LIM: Reestr ma'lumotlari */}
+            <div className="bg-purple-50/50 border border-purple-200 rounded-xl p-4 space-y-4">
+              <h4 className="font-semibold text-purple-900 text-sm flex items-center gap-2">
+                📑 Reestr ma'lumotlari
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-4 rounded-xl border border-purple-200">
+                <InputField
+                  label="Reestr raqami"
+                  value={form.registry_number || ''}
+                  onChange={set('registry_number')}
+                  placeholder="Reestr raqami"
+                />
+                <InputField
+                  label="Reestr sanasi"
+                  type="date"
+                  value={form.registry_date || ''}
+                  onChange={set('registry_date')}
+                />
+                <div className="col-span-full pt-2 border-t border-gray-100">
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    📄 Reestrdan ko'chirma (PDF fayli)
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      onChange={async (e) => {
+                        if (!e.target.files[0]) return;
+                        const targetAppId = appId || await saveData(false);
+                        if (!targetAppId) return;
+                        const formData = new FormData();
+                        formData.append('file', e.target.files[0]);
+                        formData.append('file_type', 'REGISTRY_EXTRACT');
+                        try {
+                          const res = await applicationAPI.uploadFile(targetAppId, formData);
+                          setFiles(prev => [...prev.filter(f => f.file_type !== 'REGISTRY_EXTRACT'), res.data]);
+                          toast.success("Reestrdan ko'chirma fayli yuklandi");
+                        } catch {
+                          toast.error('Fayl yuklashda xato');
+                        }
+                      }}
+                      className="text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 cursor-pointer"
+                    />
+                    {files.find(f => f.file_type === 'REGISTRY_EXTRACT') && (
+                      <span className="text-xs text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 rounded-md flex items-center gap-1">
+                        ✅ {files.find(f => f.file_type === 'REGISTRY_EXTRACT').file_name}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         );
 
       case 3:
         return (
-          <div className="space-y-4">
-            <h3 className="text-base font-semibold text-gray-800 pb-2 border-b">Agrotexnik ma'lumotlar</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-5">
+            <div className="border-b pb-2">
+              <h3 className="text-base font-semibold text-gray-800">Agrotexnik ma'lumotlar va Hujjatlar</h3>
+              <p className="text-xs text-gray-500">Tuproq, Suv va Ob-havo tahlili hujjatlari majburiy hisoblanadi</p>
+            </div>
+
+            {/* General Agrotexnik inputs */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
               <InputField label="Tuproq tipi" value={form.soil_type} onChange={set('soil_type')} placeholder="Qo'ng'ir, bo'z..." />
               <InputField label="Tuproq tarkibi" value={form.soil_composition} onChange={set('soil_composition')} placeholder="Tarkibi" />
               <InputField label="Tuproq sifati" value={form.soil_quality} onChange={set('soil_quality')} placeholder="Sifat ko'rsatkichi" />
               <InputField label="Tuproq unumdorligi" value={form.soil_fertility} onChange={set('soil_fertility')} placeholder="Unumdorlik darajasi" />
             </div>
-            <TextareaField label="Suv ta'minlanganlik xulosasi" value={form.water_supply_info} onChange={set('water_supply_info')} placeholder="Suv ta'minoti haqida ma'lumot" />
-            <TextareaField label="5 yillik ob-havo tahlili" value={form.weather_analysis} onChange={set('weather_analysis')} placeholder="Ob-havo tahlili ma'lumotlari" />
-            <TextareaField label="Ilmiy-tadqiqot tavsiyasi" value={form.scientific_recommendation} onChange={set('scientific_recommendation')} placeholder="Ilmiy muassasa tavsiyasi" />
+
+            {/* 1. Tuproq tahlili — MAJBURIY */}
+            <StructDocBlock
+              title="Tuproq tahlili xulosasi"
+              required={true}
+              icon="🧪"
+              orgList={SOIL_ANALYSIS_ORGS}
+              data={form.soil_analysis_info}
+              onChange={(field, val) => updateStructDoc('soil_analysis_info', field, val)}
+              onFileUpload={(file, type) => handleStructDocFileUpload(file, 'soil_analysis_info', type)}
+              fileType="SOIL_ANALYSIS"
+              badgeText="Majburiy"
+            />
+
+            {/* 2. Suv ta'minoti — MAJBURIY */}
+            <StructDocBlock
+              title="Suv ta'minoti xulosasi"
+              required={true}
+              icon="💧"
+              orgList={WATER_SUPPLY_ORGS}
+              data={form.water_conclusion_info}
+              onChange={(field, val) => updateStructDoc('water_conclusion_info', field, val)}
+              onFileUpload={(file, type) => handleStructDocFileUpload(file, 'water_conclusion_info', type)}
+              fileType="WATER_CONCLUSION"
+              badgeText="Majburiy"
+            />
+
+            {/* 3. Ob-havo tahlili — MAJBURIY */}
+            <StructDocBlock
+              title="5 yillik Ob-havo tahlili"
+              required={true}
+              icon="🌤️"
+              orgList={WEATHER_DATA_ORGS}
+              data={form.weather_data_info}
+              onChange={(field, val) => updateStructDoc('weather_data_info', field, val)}
+              onFileUpload={(file, type) => handleStructDocFileUpload(file, 'weather_data_info', type)}
+              fileType="WEATHER_DATA"
+              badgeText="Majburiy"
+            />
+
+            {/* 4. Ilmiy-tadqiqot tavsiyasi — IXTIYORIY */}
+            <StructDocBlock
+              title="Ilmiy-tadqiqot tavsiyasi"
+              required={false}
+              icon="🔬"
+              orgList={SCIENTIFIC_ORGS}
+              data={form.scientific_conclusion_info}
+              onChange={(field, val) => updateStructDoc('scientific_conclusion_info', field, val)}
+              onFileUpload={(file, type) => handleStructDocFileUpload(file, 'scientific_conclusion_info', type)}
+              fileType="SCIENTIFIC_CONCLUSION"
+              badgeText="Ixtiyoriy"
+            />
           </div>
         );
 
       case 4:
         return (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <h3 className="text-base font-semibold text-gray-800 pb-2 border-b">Ko'chat va Loyiha ma'lumotlari</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
+              {/* 1. Meva turi */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Meva turi <span className="text-red-500">*</span></label>
                 <select className={`input-field ${errors.fruit_type ? 'border-red-400' : ''}`} value={form.fruit_type} onChange={set('fruit_type')}>
@@ -728,19 +1269,99 @@ export default function ApplicationForm() {
                 </select>
                 {errors.fruit_type && <p className="text-red-500 text-xs mt-1">{errors.fruit_type}</p>}
               </div>
-              <InputField label="Meva navi" value={form.fruit_variety} onChange={set('fruit_variety')} placeholder="Navlar ro'yxati" />
-              <InputField label="Ekish sxemasi" value={form.planting_scheme} onChange={set('planting_scheme')} placeholder="masalan: 4x2m" />
-              <InputField
-                label="Ko'chat soni (dona)"
-                required
-                value={formatGroupedInteger(form.seedling_count)}
-                onChange={setNonNegativeInteger('seedling_count')}
-                inputMode="numeric"
-                placeholder="0"
-                error={errors.seedling_count}
-              />
-              <InputField label="Taxminiy ekilish davri" value={form.planting_period} onChange={set('planting_period')} placeholder="masalan: 2026-yil bahor" />
-              <InputField label="Suv manbasi" value={form.water_source} onChange={set('water_source')} placeholder="Kanal, quduq, daryo..." />
+
+              {/* 2. Nav (Meva navi) — O'zi yozadi */}
+              <InputField label="Meva navi" value={form.fruit_variety} onChange={set('fruit_variety')} placeholder="Masalan: Golden, Gala, Avgustin..." />
+
+              {/* 3. Ekish sxemasi — Tanlash */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ekish sxemasi</label>
+                <select
+                  className="input-field"
+                  value={form.planting_scheme}
+                  onChange={(e) => {
+                    const scheme = e.target.value;
+                    const match = scheme.match(/(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)/i);
+                    let autoCount = form.seedling_count;
+                    if (match && form.garden_area) {
+                      const a = parseFloat(match[1]);
+                      const b = parseFloat(match[2]);
+                      if (a && b) {
+                        const count = Math.round((parseFloat(form.garden_area) * 10000) / (a * b));
+                        if (count > 0) autoCount = String(count);
+                      }
+                    }
+                    setForm(prev => ({ ...prev, planting_scheme: scheme, seedling_count: autoCount }));
+                  }}
+                >
+                  <option value="">Sxemani tanlang...</option>
+                  {PLANTING_SCHEMES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+
+              {/* 4. Ko'chat soni — Avtomat kelib chiqsin (Gektar / sxema) */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Ko'chat soni (dona) <span className="text-red-500">*</span>
+                  </label>
+                  <span className="text-[11px] text-blue-600 bg-blue-50 px-2 py-0.5 rounded font-medium">
+                    ⚡ Avtomatik (Maydon/Sxema)
+                  </span>
+                </div>
+                <input
+                  className={`input-field ${errors.seedling_count ? 'border-red-400' : ''}`}
+                  value={formatGroupedInteger(form.seedling_count)}
+                  onChange={setNonNegativeInteger('seedling_count')}
+                  inputMode="numeric"
+                  placeholder="0"
+                />
+                {errors.seedling_count && <p className="text-red-500 text-xs mt-1">{errors.seedling_count}</p>}
+              </div>
+
+              {/* 5. Taxminiy ekilish davri (Yil + Bahor/Kuz) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Taxminiy ekilish davri</label>
+                <div className="flex gap-2">
+                  <select
+                    className="input-field flex-1"
+                    value={(form.planting_period || '').split('-yil ')[0] || '2026'}
+                    onChange={(e) => {
+                      const yr = e.target.value;
+                      const season = (form.planting_period || '').split('-yil ')[1] || 'bahor';
+                      setForm(prev => ({ ...prev, planting_period: `${yr}-yil ${season}` }));
+                    }}
+                  >
+                    {['2026', '2027', '2028', '2029', '2030'].map(y => <option key={y} value={y}>{y}-yil</option>)}
+                  </select>
+                  <select
+                    className="input-field w-32"
+                    value={(form.planting_period || '').split('-yil ')[1] || 'bahor'}
+                    onChange={(e) => {
+                      const season = e.target.value;
+                      const yr = (form.planting_period || '').split('-yil ')[0] || '2026';
+                      setForm(prev => ({ ...prev, planting_period: `${yr}-yil ${season}` }));
+                    }}
+                  >
+                    <option value="bahor">Bahor</option>
+                    <option value="kuz">Kuz</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* 6. Suv manbasi — Tanlash */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Suv manbasi</label>
+                <select
+                  className="input-field"
+                  value={form.water_source}
+                  onChange={set('water_source')}
+                >
+                  <option value="">Suv manbasini tanlang...</option>
+                  {WATER_SOURCES.map(w => <option key={w} value={w}>{w}</option>)}
+                </select>
+              </div>
+
               <InputField
                 label="Loyiha summasi (so'm)"
                 value={form.project_amount}
@@ -751,6 +1372,46 @@ export default function ApplicationForm() {
                 placeholder="0"
               />
             </div>
+
+            <h4 className="font-semibold text-gray-800 text-sm pt-2">Hujjatlar (Ixtiyoriy)</h4>
+            <div className="space-y-4">
+              {/* Ko'chat shartnomasi */}
+              <StructDocBlock
+                title="Ko'chat yetkazish shartnomasi"
+                required={false}
+                icon="🌱"
+                data={form.seedling_contract_info}
+                onChange={(field, val) => updateStructDoc('seedling_contract_info', field, val)}
+                onFileUpload={(file, type) => handleStructDocFileUpload(file, 'seedling_contract_info', type)}
+                fileType="SEEDLING_CONTRACT"
+                badgeText="Ixtiyoriy"
+              />
+
+              {/* Tomchilatib sug'orish shartnomasi */}
+              <StructDocBlock
+                title="Tomchilatib sug'orish shartnomasi"
+                required={false}
+                icon="💧"
+                data={form.irrigation_contract_info}
+                onChange={(field, val) => updateStructDoc('irrigation_contract_info', field, val)}
+                onFileUpload={(file, type) => handleStructDocFileUpload(file, 'irrigation_contract_info', type)}
+                fileType="IRRIGATION_CONTRACT"
+                badgeText="Ixtiyoriy"
+              />
+
+              {/* Ko'chat muvofiqlik sertifikati */}
+              <StructDocBlock
+                title="Ko'chat muvofiqlik sertifikati"
+                required={false}
+                icon="📜"
+                data={form.seedling_cert_info}
+                onChange={(field, val) => updateStructDoc('seedling_cert_info', field, val)}
+                onFileUpload={(file, type) => handleStructDocFileUpload(file, 'seedling_cert_info', type)}
+                fileType="SEEDLING_CERT"
+                badgeText="Ixtiyoriy"
+              />
+            </div>
+
             <h4 className="font-medium text-gray-700 pt-2">Ish o'rinlari</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <InputField
@@ -775,9 +1436,9 @@ export default function ApplicationForm() {
       case 5:
         return (
           <div className="space-y-4">
-            <h3 className="text-base font-semibold text-gray-800 pb-2 border-b">Hujjatlar yuklash</h3>
+            <h3 className="text-base font-semibold text-gray-800 pb-2 border-b">Hujjat yuklash (Aloqa xati)</h3>
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
-              PDF, JPG, PNG, DOC, DOCX formatlar qabul qilinadi (har biri max 10MB)
+              PDF, JPG, PNG, DOC, DOCX formatlar qabul qilinadi (max 10MB)
             </div>
             {!appId && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-700">
@@ -785,10 +1446,8 @@ export default function ApplicationForm() {
                 <button onClick={() => saveData(true)} className="ml-3 underline font-medium">Saqlash</button>
               </div>
             )}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {FILE_TYPES.map(([type, label]) => (
-                <FileUploadSection key={type} fileType={type} label={label} />
-              ))}
+            <div className="max-w-xl">
+              <FileUploadSection fileType="LETTER" label="1. Aloqa xati" />
             </div>
           </div>
         );
