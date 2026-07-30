@@ -303,8 +303,8 @@ export default function UsersManagement() {
                     <td className="py-3 px-4 font-medium text-gray-800">{u.full_name}</td>
                     <td className="py-3 px-4"><code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{u.username}</code></td>
                     <td className="py-3 px-4">
-                      <span className={`badge text-xs ${u.role === 'SUPERADMIN' ? 'bg-purple-100 text-purple-700' : ['TASDIQLOVCHI', 'IMZOLOVCHI'].includes(u.role) ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
-                        {u.role === 'SUPERADMIN' ? 'Super Admin' : u.role === 'TASDIQLOVCHI' ? 'Tasdiqlovchi' : u.role === 'IMZOLOVCHI' ? 'Imzolovchi' : 'Foydalanuvchi'}
+                      <span className={`badge text-xs ${u.role === 'SUPERADMIN' ? 'bg-purple-100 text-purple-700' : u.role === 'TASDIQLOVCHI' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
+                        {u.role === 'SUPERADMIN' ? 'Super Admin' : u.role === 'TASDIQLOVCHI' ? 'Tasdiqlovchi' : 'Foydalanuvchi'}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-gray-500 text-xs">{u.region || '—'}</td>

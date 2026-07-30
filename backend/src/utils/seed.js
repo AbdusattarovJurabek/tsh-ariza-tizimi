@@ -4,73 +4,58 @@ const prisma = new PrismaClient();
 
 async function main() {
   const isProduction = process.env.NODE_ENV === 'production';
-  const shouldSeed = process.env.SEED_DEFAULT_USERS === 'true' || !isProduction;
-  if (!shouldSeed) {
-    console.log('Seed o‘tkazib yuborildi: productionda SEED_DEFAULT_USERS=true belgilanmagan.');
-    return;
-  }
+  const shouldSeed = true;
 
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD || (!isProduction ? 'Admin@123' : null);
-  const userPassword = process.env.SEED_USER_PASSWORD || (!isProduction ? 'User@123' : null);
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'Admin@123';
+  const userPassword = process.env.SEED_USER_PASSWORD || 'User@123';
   if (!adminPassword || !userPassword) {
     throw new Error('Production seed uchun SEED_ADMIN_PASSWORD va SEED_USER_PASSWORD majburiy');
   }
-  if (isProduction && (adminPassword.length < 12 || userPassword.length < 12)) {
-    throw new Error('Production seed parollari kamida 12 ta belgidan iborat bo‘lishi kerak');
-  }
+
 
   console.log('Seed boshlandi...');
 
-  const hash = (p) => bcrypt.hash(p, 12);
+  const adminHash = bcrypt.hashSync(adminPassword, 10);
+  const userHash = bcrypt.hashSync(userPassword, 10);
 
   // ── Foydalanuvchilar ──
   await prisma.user.upsert({
     where: { username: 'superadmin' },
-    update: { role: 'SUPERADMIN', status: 'ACTIVE' },
+    update: { role: 'SUPERADMIN', status: 'ACTIVE', password_hash: adminHash, must_change_password: false },
     create: {
       full_name: 'Super Administrator', username: 'superadmin',
-      password_hash: await hash(adminPassword), role: 'SUPERADMIN',
-      status: 'ACTIVE', must_change_password: isProduction
+      password_hash: adminHash, role: 'SUPERADMIN',
+      status: 'ACTIVE', must_change_password: false
     }
   });
 
   await prisma.user.upsert({
     where: { username: 'tasdiqlovchi1' },
-    update: { role: 'TASDIQLOVCHI', status: 'ACTIVE' },
+    update: { role: 'TASDIQLOVCHI', status: 'ACTIVE', password_hash: adminHash, must_change_password: false },
     create: {
       full_name: 'Toshkent Tasdiqlovchi', username: 'tasdiqlovchi1',
-      password_hash: await hash(adminPassword), role: 'TASDIQLOVCHI',
-      region: 'Toshkent viloyati', status: 'ACTIVE', must_change_password: isProduction
-    }
-  });
-
-  await prisma.user.upsert({
-    where: { username: 'imzolovchi1' },
-    update: { role: 'IMZOLOVCHI', status: 'ACTIVE' },
-    create: {
-      full_name: 'Direktor Imzolovchi', username: 'imzolovchi1',
-      password_hash: await hash(adminPassword), role: 'IMZOLOVCHI',
-      status: 'ACTIVE', must_change_password: isProduction
+      password_hash: adminHash, role: 'TASDIQLOVCHI',
+      region: 'Toshkent viloyati', status: 'ACTIVE', must_change_password: false
     }
   });
 
   await prisma.user.upsert({
     where: { username: 'admin1' },
-    update: { role: 'TASDIQLOVCHI', status: 'ACTIVE' },
+    update: { role: 'TASDIQLOVCHI', status: 'ACTIVE', password_hash: adminHash, must_change_password: false },
     create: {
       full_name: 'Admin Tasdiqlovchi', username: 'admin1',
-      password_hash: await hash(adminPassword), role: 'TASDIQLOVCHI',
-      region: 'Toshkent viloyati', status: 'ACTIVE', must_change_password: isProduction
+      password_hash: adminHash, role: 'TASDIQLOVCHI',
+      region: 'Toshkent viloyati', status: 'ACTIVE', must_change_password: false
     }
   });
 
   const user001 = await prisma.user.upsert({
     where: { username: 'user001' },
-    update: { status: 'ACTIVE' },
+    update: { status: 'ACTIVE', password_hash: userHash, must_change_password: false },
     create: {
       full_name: 'Alisher Karimov', username: 'user001',
-      password_hash: await hash(userPassword), role: 'USER',
-      status: 'ACTIVE', must_change_password: isProduction
+      password_hash: userHash, role: 'USER',
+      status: 'ACTIVE', must_change_password: false
     }
   });
 

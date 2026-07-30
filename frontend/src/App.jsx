@@ -26,10 +26,6 @@ import TasdiqlovchiDashboard from './pages/tasdiqlovchi/Dashboard';
 import TasdiqlovchiApplicationsList from './pages/tasdiqlovchi/ApplicationsList';
 import TasdiqlovchiApplicationDetail from './pages/tasdiqlovchi/ApplicationDetail';
 
-// Imzolovchi
-import ImzolovchiDashboard from './pages/imzolovchi/Dashboard';
-import ImzolovchiApplicationsList from './pages/imzolovchi/ApplicationsList';
-import ImzolovchiApplicationDetail from './pages/imzolovchi/ApplicationDetail';
 
 const ProtectedRoute = ({ children, roles }) => {
   const { user, loading } = useAuth();
@@ -48,7 +44,6 @@ const HomeRedirect = () => {
   if (!user) return <Navigate to="/login" replace />;
   if (user.role === 'USER') return <UserDashboard />;
   if (user.role === 'TASDIQLOVCHI') return <Navigate to="/tasdiqlovchi" replace />;
-  if (user.role === 'IMZOLOVCHI') return <Navigate to="/imzolovchi" replace />;
   return <Navigate to="/admin" replace />;
 };
 
@@ -90,17 +85,6 @@ const AppRoutes = () => {
         } />
         <Route path="tasdiqlovchi/applications/:id" element={
           <ProtectedRoute roles={['TASDIQLOVCHI', 'SUPERADMIN']}><TasdiqlovchiApplicationDetail /></ProtectedRoute>
-        } />
-
-        {/* IMZOLOVCHI */}
-        <Route path="imzolovchi" element={
-          <ProtectedRoute roles={['IMZOLOVCHI', 'SUPERADMIN']}><ImzolovchiDashboard /></ProtectedRoute>
-        } />
-        <Route path="imzolovchi/applications" element={
-          <ProtectedRoute roles={['IMZOLOVCHI', 'SUPERADMIN']}><ImzolovchiApplicationsList /></ProtectedRoute>
-        } />
-        <Route path="imzolovchi/applications/:id" element={
-          <ProtectedRoute roles={['IMZOLOVCHI', 'SUPERADMIN']}><ImzolovchiApplicationDetail /></ProtectedRoute>
         } />
 
         {/* SUPERADMIN */}

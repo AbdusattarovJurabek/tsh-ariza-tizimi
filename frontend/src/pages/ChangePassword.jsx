@@ -34,7 +34,6 @@ export default function ChangePassword() {
       const destinations = {
         USER: '/',
         TASDIQLOVCHI: '/tasdiqlovchi',
-        IMZOLOVCHI: '/imzolovchi',
         SUPERADMIN: '/admin',
       };
       navigate(destinations[user?.role] || '/');

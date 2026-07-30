@@ -23,7 +23,6 @@ export const STATUS_COLORS = {
 export const ROLE_LABELS = {
   SUPERADMIN: 'Super Admin',
   TASDIQLOVCHI: 'Tasdiqlovchi',
-  IMZOLOVCHI: 'Imzolovchi',
   USER: 'Foydalanuvchi'
 };
 
@@ -32,9 +31,7 @@ export const STATUS_TRANSITIONS = {
   HAS_ISSUES: ['SUBMITTED'],
   SUBMITTED: ['UNDER_REVIEW'],
   UNDER_REVIEW: ['HAS_ISSUES', 'APPROVED', 'REJECTED'],
-  APPROVED: ['SENT_TO_SIGNER'],
-  SENT_TO_SIGNER: ['SIGNED'],
-  SIGNED: [],
+  APPROVED: [],
   REJECTED: [],
 };
 
