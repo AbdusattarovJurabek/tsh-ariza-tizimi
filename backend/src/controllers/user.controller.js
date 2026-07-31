@@ -46,7 +46,7 @@ exports.getAllUsers = async (req, res) => {
 // Foydalanuvchi yaratish
 exports.createUser = async (req, res) => {
   try {
-    const { full_name, username, password, role = 'USER', region, district, phone } = req.body;
+    const { full_name, username, password, role = 'USER', status = 'ACTIVE', region, district, phone } = req.body;
 
     if (!full_name || !username || !password) {
       return res.status(400).json({ error: 'Ism, login va parol majburiy' });
@@ -62,7 +62,7 @@ exports.createUser = async (req, res) => {
 
     const password_hash = await bcrypt.hash(password, 12);
     const user = await prisma.user.create({
-      data: { full_name, username, password_hash, role, region, district, phone },
+      data: { full_name, username, password_hash, role, status, region, district, phone },
       select: { id: true, full_name: true, username: true, role: true, region: true, district: true, status: true }
     });
 
@@ -107,7 +107,7 @@ exports.resetPassword = async (req, res) => {
     const password_hash = await bcrypt.hash(new_password, 12);
     await prisma.user.update({
       where: { id: parseInt(id) },
-      data: { password_hash, must_change_password: true }
+      data: { password_hash, must_change_password: false }
     });
 
     res.json({ message: 'Parol muvaffaqiyatli yangilandi' });
@@ -116,17 +116,68 @@ exports.resetPassword = async (req, res) => {
   }
 };
 
+// Statusni o'zgartirish (ACTIVE / BLOCKED)
+exports.toggleUserStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = parseInt(id);
+
+    if (req.user.id === userId) {
+      return res.status(400).json({ error: "O'zingizning statusingizni o'zgartira olmaysiz" });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ error: 'Foydalanuvchi topilmadi' });
+
+    if (user.username === 'superadmin') {
+      return res.status(400).json({ error: "Asosiy SuperAdmin statusi bloklanmaydi" });
+    }
+
+    const newStatus = user.status === 'BLOCKED' ? 'ACTIVE' : 'BLOCKED';
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: { status: newStatus },
+      select: { id: true, full_name: true, username: true, status: true }
+    });
+
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Statusni o'zgartirishda xato" });
+  }
+};
+
 // Foydalanuvchini o'chirish
 exports.deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.user.update({
-      where: { id: parseInt(id) },
-      data: { status: 'INACTIVE' }
-    });
-    res.json({ message: 'Foydalanuvchi o\'chirildi' });
+    const userId = parseInt(id);
+
+    if (req.user.id === userId) {
+      return res.status(400).json({ error: "O'zingizning profilingizni o'chira olmaysiz" });
+    }
+
+    const userToDelete = await prisma.user.findUnique({ where: { id: userId } });
+    if (!userToDelete) {
+      return res.status(404).json({ error: 'Foydalanuvchi topilmadi' });
+    }
+
+    if (userToDelete.username === 'superadmin') {
+      return res.status(400).json({ error: "Asosiy SuperAdmin hisobini o'chirish taqiqlangan" });
+    }
+
+    await prisma.$transaction([
+      prisma.statusHistory.deleteMany({ where: { changed_by_id: userId } }),
+      prisma.applicationFile.deleteMany({ where: { application: { user_id: userId } } }),
+      prisma.application.deleteMany({ where: { user_id: userId } }),
+      prisma.farmer.deleteMany({ where: { user_id: userId } }),
+      prisma.user.delete({ where: { id: userId } })
+    ]);
+
+    res.json({ message: "Foydalanuvchi muvaffaqiyatli o'chirildi" });
   } catch (err) {
-    res.status(500).json({ error: 'Xato' });
+    console.error('Delete user error:', err);
+    res.status(500).json({ error: "Foydalanuvchini o'chirishda xato yuz berdi" });
   }
 };
 

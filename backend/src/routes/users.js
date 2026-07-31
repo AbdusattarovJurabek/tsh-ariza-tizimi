@@ -33,6 +33,7 @@ router.post('/', ctrl.createUser);
 router.post('/import/excel', uploadExcel.single('file'), ctrl.importUsersFromExcel);
 router.get('/export/excel', ctrl.exportUsersExcel);
 router.put('/:id', ctrl.updateUser);
+router.patch('/:id/toggle-status', ctrl.toggleUserStatus);
 router.delete('/:id', ctrl.deleteUser);
 router.post('/:id/reset-password', ctrl.resetPassword);
 

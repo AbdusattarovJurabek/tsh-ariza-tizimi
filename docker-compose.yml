@@ -45,7 +45,7 @@ services:
     volumes:
       - uploads_data:/app/uploads
     command: >
-      sh -c "npx prisma db push && node src/utils/seed.js && node src/app.js"
+      sh -c "npx prisma db push && node src/app.js"
 
   frontend:
     build:
